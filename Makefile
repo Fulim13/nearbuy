@@ -1,8 +1,10 @@
 CLUSTER       ?= nearbuy
 INGRESS_NGINX ?= https://raw.githubusercontent.com/kubernetes/ingress-nginx/controller-v1.11.2/deploy/static/provider/kind/deploy.yaml
 SERVICES_WITH_DB = user shop voucher order
+MODULE := github.com/Fulim13/nearbuy
 
-.PHONY: bootstrap cluster ingress up down nuke psql redis migrate-up migrate-down migrate-reset sqlc
+
+.PHONY: bootstrap cluster ingress up down nuke psql redis migrate-up migrate-down migrate-reset sqlc proto proto-clean
 
 bootstrap: cluster ingress
 
@@ -44,3 +46,12 @@ sqlc:
 		fi; \
 		echo "==> sqlc $$s"; (cd services/$$s-service && sqlc generate); \
 	done
+
+proto:
+	protoc -I proto \
+	  --go_out=. --go_opt=module=$(MODULE) \
+	  --go-grpc_out=. --go-grpc_opt=module=$(MODULE) \
+	  proto/*.proto
+
+proto-clean:
+	find gen -name '*.pb.go' -delete

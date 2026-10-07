@@ -56,24 +56,57 @@ k8s_resource(
     resource_deps=['postgres', 'redis'],                     # Wait for Postgres + Redis before starting
     labels=['services'],                                     # Group under "services"
 )
-
 # ---------- Migrations ----------
-SERVICES_WITH_DB = ['user', 'shop', 'voucher', 'order']
+SERVICES_WITH_DB = ['user', 'shop', 'voucher', 'order']      # Services that own a database (and need migrations)
 
-for svc in SERVICES_WITH_DB:
-    local_resource(
-        'migrate-' + svc,
-        cmd='./scripts/migrate.sh %s up' % svc,
-        deps=['./services/%s-service/database/migrations' % svc],
-        resource_deps=['postgres'],
-        labels=['init'],
+for svc in SERVICES_WITH_DB:                                # One migrate resource per service
+    local_resource(                                          # Runs a shell command on your laptop, not in k8s
+        'migrate-' + svc,                                    # Name shown in the Tilt UI, e.g. migrate-user
+        cmd='./scripts/migrate.sh %s up' % svc,              # Apply all pending migrations for this service
+        deps=['./services/%s-service/database/migrations' % svc],  # Re-run when a migration file is added or changed
+        resource_deps=['postgres'],                          # Wait for Postgres (and its port-forward) first
+        labels=['init'],                                     # Group under "init"
     )
 
 # sqlc regenerates when a query or a schema file changes. Keeping it in Tilt means
 # you never debug a stale internal/repository.
-local_resource(
-    'sqlc',
-    cmd='make sqlc',
-    deps=['./services/%s-service/database' % s for s in SERVICES_WITH_DB],
-    labels=['init'],
+local_resource(                                              
+    'sqlc',                                                  # Name shown in the Tilt UI
+    cmd='make sqlc',                                         # Regenerate Go code from the SQL queries
+    deps=['./services/%s-service/database' % s for s in SERVICES_WITH_DB],  # Watch every service's queries + migrations
+    labels=['init'],                                         # Group under "init"
+)
+
+
+# ---------- User Service ----------
+docker_build_with_restart(                                   # Build the image; restart the binary on live updates
+    'nearbuy/user-service',                                  # Image name: must match the Deployment's image:
+    '.',                                                     # Build context = repo root
+    dockerfile='./services/user-service/Dockerfile',         # Which Dockerfile to use
+    entrypoint=['/app/build/server'],                        # Command re-run after each live update
+    only=[                                                   # Only these paths trigger rebuilds (others are ignored)
+        './go.mod',                                          # Go module deps
+        './go.sum',                                          # Go dep checksums
+        './gen',                                             # Generated code
+        './pkg',                                             # Shared packages
+        './services/user-service',                           # This service's own code
+    ],
+    live_update=[                                            # Fast in-place updates instead of full rebuilds:
+        fall_back_on(['./go.mod', './go.sum']),              # Deps changed? Do a full image rebuild instead
+        sync('./services/user-service', '/app/services/user-service'),  # Copy service code into the running container
+        sync('./gen', '/app/gen'),                           # Copy generated code into the container
+        sync('./pkg', '/app/pkg'),                           # Copy shared pkg code into the container
+        run('go build -o /app/build/server ./services/user-service/cmd/server',  # Recompile the binary inside the container
+            trigger=['./services/user-service', './gen', './pkg']),  # ...only when these folders change
+    ],
+)
+
+k8s_yaml([                                                   # Apply the user service's manifests:
+    './deploy/dev/k8s/user-service-deployment.yaml',         # Deployment (runs the pods)
+    './deploy/dev/k8s/user-service-svc.yaml',                # Service (stable in-cluster address)
+])
+k8s_resource(
+    'user-service',                                          # Tilt resource for the user-service Deployment
+    resource_deps=['postgres', 'migrate-user'],              # Wait for Postgres + its migrations before starting
+    labels=['services'],                                     # Group under "services"
 )

@@ -1,0 +1,15 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: user-service
+spec:
+  # HEADLESS. DNS returns every pod IP instead of one virtual IP, which is what
+  # lets the gRPC dns:/// resolver see all replicas and round-robin across them.
+  # Change this to a normal ClusterIP and every request pins to one pod.
+  clusterIP: None
+  ports:
+    - name: grpc
+      port: 9000
+      targetPort: 9000
+  selector:
+    app: user-service

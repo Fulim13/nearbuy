@@ -27,17 +27,8 @@ spec:
             - name: REDIS_ADDR
               valueFrom:
                 configMapKeyRef: {name: app-config, key: REDIS_ADDR}
-            - name: POSTGRES_HOST
-              valueFrom:
-                configMapKeyRef: {name: app-config, key: POSTGRES_HOST}
-            - name: POSTGRES_USER
-              valueFrom:
-                secretKeyRef: {name: app-secrets, key: POSTGRES_USER}
-            - name: POSTGRES_PASSWORD
-              valueFrom:
-                secretKeyRef: {name: app-secrets, key: POSTGRES_PASSWORD}
-            - name: POSTGRES_DSN
-              value: "postgres://$(POSTGRES_USER):$(POSTGRES_PASSWORD)@$(POSTGRES_HOST):5432/postgres?sslmode=disable"
+            - name: USER_SERVICE_ADDR
+              value: "user-service:9000"
           readinessProbe:
             httpGet: { path: "/healthz", port: 8080 }
             initialDelaySeconds: 2

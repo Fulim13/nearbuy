@@ -1,0 +1,51 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: user-service
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: user-service
+  template:
+    metadata:
+      labels:
+        app: user-service
+    spec:
+      containers:
+        - name: user-service
+          image: nearbuy/user-service
+          imagePullPolicy: IfNotPresent
+          ports:
+            - containerPort: 9000
+          env:
+            - name: GRPC_PORT
+              value: "9000"
+            - name: POD_NAME
+              valueFrom:
+                fieldRef: { fieldPath: metadata.name }
+            - name: POSTGRES_HOST
+              valueFrom:
+                configMapKeyRef: { name: app-config, key: POSTGRES_HOST }
+            - name: POSTGRES_USER
+              valueFrom:
+                secretKeyRef: { name: app-secrets, key: POSTGRES_USER }
+            - name: POSTGRES_PASSWORD
+              valueFrom:
+                secretKeyRef: { name: app-secrets, key: POSTGRES_PASSWORD }
+            # $(VAR) expands from env vars declared EARLIER in this list.
+            - name: POSTGRES_DSN
+              value: "postgres://$(POSTGRES_USER):$(POSTGRES_PASSWORD)@$(POSTGRES_HOST):5432/user_db?sslmode=disable"
+          # Native gRPC probes, GA since k8s 1.27. No grpc_health_probe binary in
+          # the image, no HTTP port opened just to be checked.
+          readinessProbe:
+            grpc: { port: 9000 }
+            initialDelaySeconds: 2
+            periodSeconds: 5
+          livenessProbe:
+            grpc: { port: 9000 }
+            initialDelaySeconds: 10
+            periodSeconds: 10
+          resources:
+            requests: { cpu: 100m, memory: 128Mi }
+            limits:   { cpu: 500m, memory: 512Mi }

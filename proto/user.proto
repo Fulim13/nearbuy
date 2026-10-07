@@ -1,0 +1,23 @@
+syntax = "proto3";
+
+package user.v1;
+
+option go_package = "github.com/Fulim13/nearbuy/gen/golang/v1/user;user";
+
+service User {
+	rpc GetUser (GetUserRequest) returns (GetUserResponse);
+}
+
+message PublicUser {
+	int64 id = 1;
+	string nick_name = 2;
+	string icon = 3;
+}
+
+message GetUserRequest {
+	int64 id = 1;
+}
+
+message GetUserResponse {
+	PublicUser user = 1;
+}
