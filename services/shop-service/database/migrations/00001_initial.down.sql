@@ -1,0 +1,3 @@
+DROP TABLE IF EXISTS shop;
+DROP TABLE IF EXISTS shop_type;
+DROP FUNCTION IF EXISTS set_update_time();

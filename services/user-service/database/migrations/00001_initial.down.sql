@@ -1,0 +1,3 @@
+DROP TABLE IF EXISTS follow;
+DROP TABLE IF EXISTS app_user;
+DROP FUNCTION IF EXISTS set_update_time();

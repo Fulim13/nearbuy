@@ -56,3 +56,24 @@ k8s_resource(
     resource_deps=['postgres', 'redis'],                     # Wait for Postgres + Redis before starting
     labels=['services'],                                     # Group under "services"
 )
+
+# ---------- Migrations ----------
+SERVICES_WITH_DB = ['user', 'shop', 'voucher', 'order', 'blog']
+
+for svc in SERVICES_WITH_DB:
+    local_resource(
+        'migrate-' + svc,
+        cmd='./scripts/migrate.sh %s up' % svc,
+        deps=['./services/%s-service/database/migrations' % svc],
+        resource_deps=['postgres'],
+        labels=['init'],
+    )
+
+# sqlc regenerates when a query or a schema file changes. Keeping it in Tilt means
+# you never debug a stale internal/repository.
+local_resource(
+    'sqlc',
+    cmd='make sqlc',
+    deps=['./services/%s-service/database' % s for s in SERVICES_WITH_DB],
+    labels=['init'],
+)
