@@ -58,7 +58,7 @@ k8s_resource(
 )
 
 # ---------- Migrations ----------
-SERVICES_WITH_DB = ['user', 'shop', 'voucher', 'order', 'blog']
+SERVICES_WITH_DB = ['user', 'shop', 'voucher', 'order']
 
 for svc in SERVICES_WITH_DB:
     local_resource(

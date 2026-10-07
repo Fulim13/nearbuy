@@ -9,7 +9,6 @@ data:
     CREATE DATABASE shop_db;            -- DB for shop service
     CREATE DATABASE voucher_db;         -- DB for voucher service
     CREATE DATABASE order_db;           -- DB for order service
-    CREATE DATABASE blog_db;            -- DB for blog service
     CREATE DATABASE dtm_db;             -- DB for DTM (distributed transactions)
 ---
 # ===== 2) Service: gives Postgres a stable network name =====

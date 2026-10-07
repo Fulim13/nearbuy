@@ -1,2 +1,0 @@
-DROP TABLE IF EXISTS blog;
-DROP FUNCTION IF EXISTS set_update_time();

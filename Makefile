@@ -1,6 +1,6 @@
 CLUSTER       ?= nearbuy
 INGRESS_NGINX ?= https://raw.githubusercontent.com/kubernetes/ingress-nginx/controller-v1.11.2/deploy/static/provider/kind/deploy.yaml
-SERVICES_WITH_DB = user shop voucher order blog
+SERVICES_WITH_DB = user shop voucher order
 
 .PHONY: bootstrap cluster ingress up down nuke psql redis migrate-up migrate-down migrate-reset sqlc
 
@@ -38,9 +38,9 @@ migrate-down:
 migrate-reset: migrate-down migrate-up
 
 sqlc:
-      @for s in $(SERVICES_WITH_DB); do \
-              if ! ls services/$$s-service/database/queries/*.sql >/dev/null 2>&1; then \
-                      echo "==> sqlc $$s (no queries yet, skipping)"; continue; \
-              fi; \
-              echo "==> sqlc $$s"; (cd services/$$s-service && sqlc generate); \
-      done
+	@for s in $(SERVICES_WITH_DB); do \
+		if ! ls services/$$s-service/database/queries/*.sql >/dev/null 2>&1; then \
+			echo "==> sqlc $$s (no queries yet, skipping)"; continue; \
+		fi; \
+		echo "==> sqlc $$s"; (cd services/$$s-service && sqlc generate); \
+	done
