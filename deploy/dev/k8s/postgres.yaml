@@ -1,0 +1,102 @@
+# ===== 1) ConfigMap: SQL that runs on FIRST start only =====
+apiVersion: v1
+kind: ConfigMap                         # config files
+metadata:                               # info about this config
+  name: postgres-initdb                 # name of this config that the StatefulSet uses below
+data:
+  01-databases.sql: |
+    CREATE DATABASE user_db;            -- DB for user service
+    CREATE DATABASE shop_db;            -- DB for shop service
+    CREATE DATABASE voucher_db;         -- DB for voucher service
+    CREATE DATABASE order_db;           -- DB for order service
+    CREATE DATABASE blog_db;            -- DB for blog service
+    CREATE DATABASE dtm_db;             -- DB for DTM (distributed transactions)
+---
+# ===== 2) Service: gives Postgres a stable network name =====
+apiVersion: v1
+kind: Service
+metadata:                               # info about this service
+  name: postgres                        # apps connect to host "postgres"
+  labels:                               # tags on this Service
+    app: postgres
+spec:                                   # Service settings
+  clusterIP: None                       # headless: DNS points straight to the pod
+  ports:                                # ports to expose
+    - name: postgres                    # port nickname
+      port: 5432                        # port clients connect to
+      targetPort: 5432                  # port inside the container
+  selector:                             # which pods get the traffic
+    app: postgres                       # pods with this label
+
+---
+# ===== 3) StatefulSet: runs Postgres with its own disk =====
+apiVersion: apps/v1
+kind: StatefulSet                       # pods with stable name + own storage
+metadata:                               # info about this statefull set
+  name: postgres                        # pod will be "postgres-0"
+spec:                                   # StatefulSet settings
+  serviceName: postgres                 # links to the headless Service above
+  replicas: 1                           # run 1 copy
+  selector:                             # which pods this manages
+    matchLabels:                        # match by label
+      app: postgres                     # must equal template label
+  template:                             # blueprint for each pod
+    metadata:                           # pod info
+      labels:                           # pod tags
+        app: postgres                   # tag the Service + selector look for
+    spec:                               # pod settings
+      containers:                       # containers in the pod
+        - name: postgres                # container name
+          image: postgres:18-alpine     # Postgres 18, small Alpine image
+          ports:                        # ports the container opens
+            - containerPort: 5432       # Postgres default port
+          env:                          # environment variables
+            - name: POSTGRES_USER       # admin username
+              valueFrom:                # read value from somewhere
+                secretKeyRef: {name: app-secrets, key: POSTGRES_USER}         # from Secret "app-secrets"
+            - name: POSTGRES_PASSWORD   # admin password
+              valueFrom:                # read value from somewhere
+                secretKeyRef: {name: app-secrets, key: POSTGRES_PASSWORD}     # from Secret "app-secrets"
+            - name: PGDATA              # where Postgres keeps its data
+              value: /var/lib/postgresql/data/pgdata   # subfolder inside the disk
+          volumeMounts:                 # attach volumes into container
+            - name: data                # the persistent disk
+              mountPath: /var/lib/postgresql/data      # where the disk appears
+            - name: initdb              # the SQL ConfigMap
+              mountPath: /docker-entrypoint-initdb.d   # image auto-runs files here on first start
+          readinessProbe:               # "ready for traffic?" check
+            exec:                       # run a command to check
+              command: ["sh", "-c", "pg_isready -U \"$POSTGRES_USER\""]   # uses your real user
+            initialDelaySeconds: 5      # wait 5s before first check
+            periodSeconds: 5            # check every 5s
+          resources:                    # CPU / memory rules
+            requests: {cpu: 100m, memory: 256Mi}   # guaranteed minimum
+            limits:   {cpu: 500m, memory: 512Mi}   # hard maximum
+      volumes:                          # volumes for the pod
+        - name: initdb                  # name used in volumeMounts
+          configMap:                    # comes from a ConfigMap
+            name: postgres-initdb       # the ConfigMap at the top
+  volumeClaimTemplates:                 # auto-creates a disk per pod
+    - metadata:                         # disk info
+        name: data                      # matches volumeMount "data"
+      spec:                             # disk settings
+        accessModes: ["ReadWriteOnce"]  # one node can write at a time
+        storageClassName: standard      # storage type (must exist in your cluster)
+        resources:                      # disk size
+          requests:                     # ask for
+            storage: 2Gi                # 2 GB
+
+
+# 📄 A note with instructions ("make these 6 databases")
+# 🗄️ A filing cabinet to keep all the data safe
+# volumeMounts:
+#   - name: data      # 🗄️ cabinet goes here
+#   - name: initdb    # 📄 note goes here
+
+# what the note is
+# volumes:
+#   - name: initdb    # 📄 the note = your SQL file
+
+# What the cabinet is
+# volumeClaimTemplates:
+#   - name: data      # 🗄️ the cabinet = a 2 GB disk
