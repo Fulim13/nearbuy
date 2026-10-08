@@ -6,6 +6,7 @@ import (
 	"log/slog"
 
 	"github.com/Fulim13/nearbuy/gen/golang/v1/user"
+	"github.com/Fulim13/nearbuy/pkg/grpx"
 	"github.com/Fulim13/nearbuy/services/user-service/internal/service"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
@@ -27,6 +28,8 @@ func (h *GRPCHandler) GetUser(ctx context.Context, in *user.GetUserRequest) (*us
 	}
 
 	u, err := h.service.GetUser(ctx, in.GetId())
+	callerID, authed := grpx.UserIDFromContext(ctx)
+	slog.Info("GetUser", "target_id", in.GetId(), "caller_id", callerID, "authenticated", authed)
 	if errors.Is(err, service.ErrUserNotFound) {
 		return nil, status.Error(codes.NotFound, "user not found")
 	}

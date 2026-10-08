@@ -45,7 +45,7 @@ func main() {
 	e.Use(middleware.RequestLogger())
 	e.Use(middleware.Recover())
 
-	handler.Routes(e, limiter,
+	handler.Routes(e, limiter, sessions,
 		handler.NewUserHandler(userClient),
 		handler.NewAuthHandler(sessions, userClient, limiter),
 	)

@@ -16,6 +16,7 @@ func Dial(target string, opts ...grpc.DialOption) (*grpc.ClientConn, error) {
 	base := []grpc.DialOption{
 		grpc.WithTransportCredentials(insecure.NewCredentials()),
 		grpc.WithDefaultServiceConfig(roundRobin),
+		grpc.WithChainUnaryInterceptor(UnaryClientInterceptor()),
 	}
 	return grpc.NewClient("dns:///"+target, append(base, opts...)...)
 }

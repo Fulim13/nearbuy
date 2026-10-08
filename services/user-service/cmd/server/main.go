@@ -8,6 +8,7 @@ import (
 	"os/signal"
 	"syscall"
 
+	"github.com/Fulim13/nearbuy/pkg/grpx"
 	"github.com/Fulim13/nearbuy/pkg/util"
 
 	"github.com/Fulim13/nearbuy/services/user-service/internal/handler"
@@ -43,7 +44,9 @@ func main() {
 		os.Exit(1)
 	}
 
-	grpcServer := grpc.NewServer()
+	grpcServer := grpc.NewServer(
+		grpc.ChainUnaryInterceptor(grpx.UnaryServerInterceptor()),
+	)
 	handler.NewGRPCHandler(grpcServer, service.NewUserService(pool))
 
 	// Backs the k8s grpc: probe. Registered last so it only reports SERVING once
