@@ -6,6 +6,7 @@ option go_package = "github.com/Fulim13/nearbuy/gen/golang/v1/user;user";
 
 service User {
 	rpc GetUser (GetUserRequest) returns (GetUserResponse);
+	rpc GetOrCreateUserByPhone (GetOrCreateUserByPhoneRequest) returns (GetOrCreateUserByPhoneResponse);
 }
 
 message PublicUser {
@@ -20,4 +21,14 @@ message GetUserRequest {
 
 message GetUserResponse {
 	PublicUser user = 1;
+}
+
+message GetOrCreateUserByPhoneRequest {
+	string phone = 1;
+	string default_nick_name = 2;
+}
+
+message GetOrCreateUserByPhoneResponse {
+	PublicUser user = 1;
+	bool created = 2;
 }

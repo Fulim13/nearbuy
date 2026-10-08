@@ -29,6 +29,9 @@ spec:
                 configMapKeyRef: {name: app-config, key: REDIS_ADDR}
             - name: USER_SERVICE_ADDR
               value: "user-service:9000"
+            - name: DEV_ECHO_SMS
+              valueFrom:
+                configMapKeyRef: { name: app-config, key: DEV_ECHO_SMS }
           readinessProbe:
             httpGet: { path: "/healthz", port: 8080 }
             initialDelaySeconds: 2

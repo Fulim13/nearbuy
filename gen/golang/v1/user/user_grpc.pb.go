@@ -19,7 +19,8 @@ import (
 const _ = grpc.SupportPackageIsVersion9
 
 const (
-	User_GetUser_FullMethodName = "/user.v1.User/GetUser"
+	User_GetUser_FullMethodName                = "/user.v1.User/GetUser"
+	User_GetOrCreateUserByPhone_FullMethodName = "/user.v1.User/GetOrCreateUserByPhone"
 )
 
 // UserClient is the client API for User service.
@@ -27,6 +28,7 @@ const (
 // For semantics around ctx use and closing/ending streaming RPCs, please refer to https://pkg.go.dev/google.golang.org/grpc/?tab=doc#ClientConn.NewStream.
 type UserClient interface {
 	GetUser(ctx context.Context, in *GetUserRequest, opts ...grpc.CallOption) (*GetUserResponse, error)
+	GetOrCreateUserByPhone(ctx context.Context, in *GetOrCreateUserByPhoneRequest, opts ...grpc.CallOption) (*GetOrCreateUserByPhoneResponse, error)
 }
 
 type userClient struct {
@@ -47,11 +49,22 @@ func (c *userClient) GetUser(ctx context.Context, in *GetUserRequest, opts ...gr
 	return out, nil
 }
 
+func (c *userClient) GetOrCreateUserByPhone(ctx context.Context, in *GetOrCreateUserByPhoneRequest, opts ...grpc.CallOption) (*GetOrCreateUserByPhoneResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(GetOrCreateUserByPhoneResponse)
+	err := c.cc.Invoke(ctx, User_GetOrCreateUserByPhone_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
 // UserServer is the server API for User service.
 // All implementations must embed UnimplementedUserServer
 // for forward compatibility.
 type UserServer interface {
 	GetUser(context.Context, *GetUserRequest) (*GetUserResponse, error)
+	GetOrCreateUserByPhone(context.Context, *GetOrCreateUserByPhoneRequest) (*GetOrCreateUserByPhoneResponse, error)
 	mustEmbedUnimplementedUserServer()
 }
 
@@ -64,6 +77,9 @@ type UnimplementedUserServer struct{}
 
 func (UnimplementedUserServer) GetUser(context.Context, *GetUserRequest) (*GetUserResponse, error) {
 	return nil, status.Error(codes.Unimplemented, "method GetUser not implemented")
+}
+func (UnimplementedUserServer) GetOrCreateUserByPhone(context.Context, *GetOrCreateUserByPhoneRequest) (*GetOrCreateUserByPhoneResponse, error) {
+	return nil, status.Error(codes.Unimplemented, "method GetOrCreateUserByPhone not implemented")
 }
 func (UnimplementedUserServer) mustEmbedUnimplementedUserServer() {}
 func (UnimplementedUserServer) testEmbeddedByValue()              {}
@@ -104,6 +120,24 @@ func _User_GetUser_Handler(srv interface{}, ctx context.Context, dec func(interf
 	return interceptor(ctx, in, info, handler)
 }
 
+func _User_GetOrCreateUserByPhone_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(GetOrCreateUserByPhoneRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(UserServer).GetOrCreateUserByPhone(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: User_GetOrCreateUserByPhone_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(UserServer).GetOrCreateUserByPhone(ctx, req.(*GetOrCreateUserByPhoneRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
 // User_ServiceDesc is the grpc.ServiceDesc for User service.
 // It's only intended for direct use with grpc.RegisterService,
 // and not to be introspected or modified (even as a copy)
@@ -114,6 +148,10 @@ var User_ServiceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "GetUser",
 			Handler:    _User_GetUser_Handler,
+		},
+		{
+			MethodName: "GetOrCreateUserByPhone",
+			Handler:    _User_GetOrCreateUserByPhone_Handler,
 		},
 	},
 	Streams:  []grpc.StreamDesc{},

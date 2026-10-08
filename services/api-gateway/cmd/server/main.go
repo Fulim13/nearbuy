@@ -10,9 +10,11 @@ import (
 	"syscall"
 	"time"
 
+	"github.com/Fulim13/nearbuy/pkg/ratelimit"
 	"github.com/Fulim13/nearbuy/pkg/util"
 	"github.com/Fulim13/nearbuy/services/api-gateway/internal/client"
 	"github.com/Fulim13/nearbuy/services/api-gateway/internal/handler"
+	"github.com/Fulim13/nearbuy/services/api-gateway/internal/session"
 	"github.com/labstack/echo/v5"
 	"github.com/labstack/echo/v5/middleware"
 	"github.com/redis/go-redis/v9"
@@ -36,11 +38,17 @@ func main() {
 	}
 	defer userClient.Close()
 
+	limiter := ratelimit.New(rdb)
+	sessions := session.NewStore(rdb)
+
 	e := echo.New()
 	e.Use(middleware.RequestLogger())
 	e.Use(middleware.Recover())
 
-	handler.Routes(e, handler.NewUserHandler(userClient))
+	handler.Routes(e, limiter,
+		handler.NewUserHandler(userClient),
+		handler.NewAuthHandler(sessions, userClient, limiter),
+	)
 
 	e.GET("/api/health/deps", func(c *echo.Context) error {
 		reqCtx, cancel := context.WithTimeout(c.Request().Context(), 2*time.Second)

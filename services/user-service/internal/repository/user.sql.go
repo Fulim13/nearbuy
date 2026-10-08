@@ -64,6 +64,52 @@ func (q *Queries) CreateUser(ctx context.Context, arg CreateUserParams) (AppUser
 	return i, err
 }
 
+const createUserByPhone = `-- name: CreateUserByPhone :one
+INSERT INTO app_user (phone, nick_name)
+VALUES ($1, $2)
+ON CONFLICT (phone) DO UPDATE SET phone = EXCLUDED.phone
+RETURNING id, phone, password, nick_name, icon, city, introduce, fans, followee, gender, birthday, credits, level, balance, trading_balance, create_time, update_time
+`
+
+type CreateUserByPhoneParams struct {
+	Phone    string `json:"phone"`
+	NickName string `json:"nick_name"`
+}
+
+// Get-or-create a user by phone.
+//
+// Why DO UPDATE instead of DO NOTHING:
+//  1. A inserts +60123 → success, gets the row
+//  2. B inserts +60123 → conflict → DO NOTHING → no row returned → B's login fails
+//
+// EXCLUDED.phone = the value we tried to insert (same as the existing one),
+// so the SET changes nothing, but Postgres counts the row as updated and
+// RETURNING gives it back.
+func (q *Queries) CreateUserByPhone(ctx context.Context, arg CreateUserByPhoneParams) (AppUser, error) {
+	row := q.db.QueryRow(ctx, createUserByPhone, arg.Phone, arg.NickName)
+	var i AppUser
+	err := row.Scan(
+		&i.ID,
+		&i.Phone,
+		&i.Password,
+		&i.NickName,
+		&i.Icon,
+		&i.City,
+		&i.Introduce,
+		&i.Fans,
+		&i.Followee,
+		&i.Gender,
+		&i.Birthday,
+		&i.Credits,
+		&i.Level,
+		&i.Balance,
+		&i.TradingBalance,
+		&i.CreateTime,
+		&i.UpdateTime,
+	)
+	return i, err
+}
+
 const getUser = `-- name: GetUser :one
 SELECT id, phone, password, nick_name, icon, city, introduce, fans, followee, gender, birthday, credits, level, balance, trading_balance, create_time, update_time FROM app_user WHERE id = $1
 `

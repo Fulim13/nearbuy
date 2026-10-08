@@ -169,6 +169,110 @@ func (x *GetUserResponse) GetUser() *PublicUser {
 	return nil
 }
 
+type GetOrCreateUserByPhoneRequest struct {
+	state           protoimpl.MessageState `protogen:"open.v1"`
+	Phone           string                 `protobuf:"bytes,1,opt,name=phone,proto3" json:"phone,omitempty"`
+	DefaultNickName string                 `protobuf:"bytes,2,opt,name=default_nick_name,json=defaultNickName,proto3" json:"default_nick_name,omitempty"`
+	unknownFields   protoimpl.UnknownFields
+	sizeCache       protoimpl.SizeCache
+}
+
+func (x *GetOrCreateUserByPhoneRequest) Reset() {
+	*x = GetOrCreateUserByPhoneRequest{}
+	mi := &file_user_proto_msgTypes[3]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *GetOrCreateUserByPhoneRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*GetOrCreateUserByPhoneRequest) ProtoMessage() {}
+
+func (x *GetOrCreateUserByPhoneRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_user_proto_msgTypes[3]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use GetOrCreateUserByPhoneRequest.ProtoReflect.Descriptor instead.
+func (*GetOrCreateUserByPhoneRequest) Descriptor() ([]byte, []int) {
+	return file_user_proto_rawDescGZIP(), []int{3}
+}
+
+func (x *GetOrCreateUserByPhoneRequest) GetPhone() string {
+	if x != nil {
+		return x.Phone
+	}
+	return ""
+}
+
+func (x *GetOrCreateUserByPhoneRequest) GetDefaultNickName() string {
+	if x != nil {
+		return x.DefaultNickName
+	}
+	return ""
+}
+
+type GetOrCreateUserByPhoneResponse struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	User          *PublicUser            `protobuf:"bytes,1,opt,name=user,proto3" json:"user,omitempty"`
+	Created       bool                   `protobuf:"varint,2,opt,name=created,proto3" json:"created,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *GetOrCreateUserByPhoneResponse) Reset() {
+	*x = GetOrCreateUserByPhoneResponse{}
+	mi := &file_user_proto_msgTypes[4]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *GetOrCreateUserByPhoneResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*GetOrCreateUserByPhoneResponse) ProtoMessage() {}
+
+func (x *GetOrCreateUserByPhoneResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_user_proto_msgTypes[4]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use GetOrCreateUserByPhoneResponse.ProtoReflect.Descriptor instead.
+func (*GetOrCreateUserByPhoneResponse) Descriptor() ([]byte, []int) {
+	return file_user_proto_rawDescGZIP(), []int{4}
+}
+
+func (x *GetOrCreateUserByPhoneResponse) GetUser() *PublicUser {
+	if x != nil {
+		return x.User
+	}
+	return nil
+}
+
+func (x *GetOrCreateUserByPhoneResponse) GetCreated() bool {
+	if x != nil {
+		return x.Created
+	}
+	return false
+}
+
 var File_user_proto protoreflect.FileDescriptor
 
 const file_user_proto_rawDesc = "" +
@@ -183,9 +287,16 @@ const file_user_proto_rawDesc = "" +
 	"\x0eGetUserRequest\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\x03R\x02id\":\n" +
 	"\x0fGetUserResponse\x12'\n" +
-	"\x04user\x18\x01 \x01(\v2\x13.user.v1.PublicUserR\x04user2D\n" +
+	"\x04user\x18\x01 \x01(\v2\x13.user.v1.PublicUserR\x04user\"a\n" +
+	"\x1dGetOrCreateUserByPhoneRequest\x12\x14\n" +
+	"\x05phone\x18\x01 \x01(\tR\x05phone\x12*\n" +
+	"\x11default_nick_name\x18\x02 \x01(\tR\x0fdefaultNickName\"c\n" +
+	"\x1eGetOrCreateUserByPhoneResponse\x12'\n" +
+	"\x04user\x18\x01 \x01(\v2\x13.user.v1.PublicUserR\x04user\x12\x18\n" +
+	"\acreated\x18\x02 \x01(\bR\acreated2\xaf\x01\n" +
 	"\x04User\x12<\n" +
-	"\aGetUser\x12\x17.user.v1.GetUserRequest\x1a\x18.user.v1.GetUserResponseB4Z2github.com/Fulim13/nearbuy/gen/golang/v1/user;userb\x06proto3"
+	"\aGetUser\x12\x17.user.v1.GetUserRequest\x1a\x18.user.v1.GetUserResponse\x12i\n" +
+	"\x16GetOrCreateUserByPhone\x12&.user.v1.GetOrCreateUserByPhoneRequest\x1a'.user.v1.GetOrCreateUserByPhoneResponseB4Z2github.com/Fulim13/nearbuy/gen/golang/v1/user;userb\x06proto3"
 
 var (
 	file_user_proto_rawDescOnce sync.Once
@@ -199,21 +310,26 @@ func file_user_proto_rawDescGZIP() []byte {
 	return file_user_proto_rawDescData
 }
 
-var file_user_proto_msgTypes = make([]protoimpl.MessageInfo, 3)
+var file_user_proto_msgTypes = make([]protoimpl.MessageInfo, 5)
 var file_user_proto_goTypes = []any{
-	(*PublicUser)(nil),      // 0: user.v1.PublicUser
-	(*GetUserRequest)(nil),  // 1: user.v1.GetUserRequest
-	(*GetUserResponse)(nil), // 2: user.v1.GetUserResponse
+	(*PublicUser)(nil),                     // 0: user.v1.PublicUser
+	(*GetUserRequest)(nil),                 // 1: user.v1.GetUserRequest
+	(*GetUserResponse)(nil),                // 2: user.v1.GetUserResponse
+	(*GetOrCreateUserByPhoneRequest)(nil),  // 3: user.v1.GetOrCreateUserByPhoneRequest
+	(*GetOrCreateUserByPhoneResponse)(nil), // 4: user.v1.GetOrCreateUserByPhoneResponse
 }
 var file_user_proto_depIdxs = []int32{
 	0, // 0: user.v1.GetUserResponse.user:type_name -> user.v1.PublicUser
-	1, // 1: user.v1.User.GetUser:input_type -> user.v1.GetUserRequest
-	2, // 2: user.v1.User.GetUser:output_type -> user.v1.GetUserResponse
-	2, // [2:3] is the sub-list for method output_type
-	1, // [1:2] is the sub-list for method input_type
-	1, // [1:1] is the sub-list for extension type_name
-	1, // [1:1] is the sub-list for extension extendee
-	0, // [0:1] is the sub-list for field type_name
+	0, // 1: user.v1.GetOrCreateUserByPhoneResponse.user:type_name -> user.v1.PublicUser
+	1, // 2: user.v1.User.GetUser:input_type -> user.v1.GetUserRequest
+	3, // 3: user.v1.User.GetOrCreateUserByPhone:input_type -> user.v1.GetOrCreateUserByPhoneRequest
+	2, // 4: user.v1.User.GetUser:output_type -> user.v1.GetUserResponse
+	4, // 5: user.v1.User.GetOrCreateUserByPhone:output_type -> user.v1.GetOrCreateUserByPhoneResponse
+	4, // [4:6] is the sub-list for method output_type
+	2, // [2:4] is the sub-list for method input_type
+	2, // [2:2] is the sub-list for extension type_name
+	2, // [2:2] is the sub-list for extension extendee
+	0, // [0:2] is the sub-list for field type_name
 }
 
 func init() { file_user_proto_init() }
@@ -227,7 +343,7 @@ func file_user_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_user_proto_rawDesc), len(file_user_proto_rawDesc)),
 			NumEnums:      0,
-			NumMessages:   3,
+			NumMessages:   5,
 			NumExtensions: 0,
 			NumServices:   1,
 		},

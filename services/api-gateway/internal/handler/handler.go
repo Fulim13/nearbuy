@@ -3,20 +3,31 @@ package handler
 import (
 	"net/http"
 
+	"github.com/Fulim13/nearbuy/pkg/ratelimit"
 	"github.com/Fulim13/nearbuy/pkg/util"
+	mw "github.com/Fulim13/nearbuy/services/api-gateway/internal/middleware"
 	"github.com/labstack/echo/v5"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 )
 
-func Routes(e *echo.Echo, user *UserHandler) {
+func Routes(e *echo.Echo, limiter *ratelimit.Limiter, user *UserHandler, auth *AuthHandler) {
 	e.GET("/healthz", func(c *echo.Context) error {
 		return c.String(http.StatusOK, "ok")
 	})
 
-	api := e.Group("/api")
+	perIP := mw.Tier{
+		Name:       "per-ip",
+		Key:        func(c *echo.Context) string { return "rl:ip:" + c.RealIP() },
+		Capacity:   100,
+		RatePerSec: 100.0 / 60.0,
+	}
+
+	api := e.Group("/api", mw.RateLimit(limiter, perIP))
 	api.GET("/ping", ping)
 	api.GET("/user/:id", user.getUser)
+	api.POST("/user/code", auth.sendCode)
+	api.POST("/user/login", auth.login)
 }
 
 func ping(c *echo.Context) error {

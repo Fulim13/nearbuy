@@ -41,3 +41,20 @@ func (h *GRPCHandler) GetUser(ctx context.Context, in *user.GetUserRequest) (*us
 		Icon:     u.Icon,
 	}}, nil
 }
+
+func (h *GRPCHandler) GetOrCreateUserByPhone(ctx context.Context, in *user.GetOrCreateUserByPhoneRequest) (*user.GetOrCreateUserByPhoneResponse, error) {
+	if in.GetPhone() == "" {
+		return nil, status.Error(codes.InvalidArgument, "phone is required")
+	}
+
+	u, created, err := h.service.GetOrCreateUserByPhone(ctx, in.GetPhone(), in.GetDefaultNickName())
+	if err != nil {
+		slog.Error("get or create user", "phone", in.GetPhone(), "error", err)
+		return nil, status.Error(codes.Internal, "internal error")
+	}
+
+	return &user.GetOrCreateUserByPhoneResponse{
+		User:    &user.PublicUser{Id: u.ID, NickName: u.NickName, Icon: u.Icon},
+		Created: created,
+	}, nil
+}
