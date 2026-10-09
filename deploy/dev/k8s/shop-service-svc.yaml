@@ -1,0 +1,14 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: shop-service
+spec:
+  # Headless, same as user-service: DNS returns every pod IP so the gRPC
+  # dns:/// resolver can round-robin across replicas.
+  clusterIP: None
+  ports:
+    - name: grpc
+      port: 9001
+      targetPort: 9001
+  selector:
+    app: shop-service

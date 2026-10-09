@@ -32,6 +32,8 @@ spec:
             - name: DEV_ECHO_SMS
               valueFrom:
                 configMapKeyRef: { name: app-config, key: DEV_ECHO_SMS }
+            - name: SHOP_SERVICE_ADDR
+              value: "shop-service:9001"
           readinessProbe:
             httpGet: { path: "/healthz", port: 8080 }
             initialDelaySeconds: 2

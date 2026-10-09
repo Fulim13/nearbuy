@@ -13,7 +13,7 @@ import (
 	"google.golang.org/grpc/status"
 )
 
-func Routes(e *echo.Echo, limiter *ratelimit.Limiter, sessions *session.Store, user *UserHandler, auth *AuthHandler) {
+func Routes(e *echo.Echo, limiter *ratelimit.Limiter, sessions *session.Store, user *UserHandler, auth *AuthHandler, shop *ShopHandler) {
 	e.GET("/healthz", func(c *echo.Context) error {
 		return c.String(http.StatusOK, "ok")
 	})
@@ -60,6 +60,16 @@ func Routes(e *echo.Echo, limiter *ratelimit.Limiter, sessions *session.Store, u
 	authed := api.Group("", mw.RequireAuth())
 	authed.GET("/user/me", auth.getMe)
 	authed.POST("/user/logout", auth.logout)
+
+	// Public
+	api.GET("/shops/:id", shop.getShop)
+	api.GET("/shops", shop.listShops)
+	api.GET("/shop-types", shop.listShopTypes)
+
+	// Authenticated
+	authed.POST("/shops", shop.createShop)
+	authed.PATCH("/shops/:id", shop.updateShop)
+
 }
 
 func ping(c *echo.Context) error {

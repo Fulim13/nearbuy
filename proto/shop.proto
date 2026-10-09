@@ -1,0 +1,93 @@
+syntax = "proto3";
+
+package shop.v1;
+
+option go_package = "github.com/Fulim13/nearbuy/gen/golang/v1/shop;shop";
+
+service Shop {
+	rpc GetShop(GetShopRequest) returns (GetShopResponse);
+	rpc ListShops(ListShopsRequest) returns (ListShopsResponse);
+	rpc ListShopTypes(ListShopTypesRequest) returns (ListShopTypesResponse);
+	rpc CreateShop(CreateShopRequest) returns (CreateShopResponse);
+	rpc UpdateShop(UpdateShopRequest) returns (UpdateShopResponse);
+}
+
+message ShopInfo {
+	int64 id = 1;
+	string name = 2;
+	int64 type_id = 3;
+	string images = 4;
+	string area = 5;
+	string address = 6;
+	double x = 7;
+	double y = 8;
+	int64 avg_price = 9;
+	int32 sold = 10;
+	int32 comments = 11;
+	int32 score = 12;
+	string open_hours = 13;
+}
+
+message ShopType {
+	int64 id = 1;
+	string name = 2;
+	string icon = 3;
+	int32 sort_order = 4;
+}
+
+message GetShopRequest {
+	int64 id = 1;
+}
+
+message GetShopResponse {
+	ShopInfo shop = 1;
+}
+
+message ListShopsRequest {
+	int64 type_id = 1;
+	string name = 2;
+	int32 page = 3;
+	int32 page_size = 4;
+}
+
+message ListShopsResponse {
+	repeated ShopInfo shops = 1;
+	int64 total = 2;
+}
+
+message ListShopTypesRequest {}
+
+message ListShopTypesResponse {
+	repeated ShopType types = 1;
+}
+
+message CreateShopRequest {
+	string name = 1;
+	int64 type_id = 2;
+	string images = 3;
+	string area = 4;
+	string address = 5;
+	double x = 6;
+	double y = 7;
+	int64 avg_price = 8;
+	string open_hours = 9;
+}
+
+message CreateShopResponse {
+	ShopInfo shop = 1;
+}
+
+message UpdateShopRequest {
+	int64 id = 1;
+	optional string name = 2;
+	optional int64 type_id = 3;
+	optional string images = 4;
+	optional string area = 5;
+	optional string address = 6;
+	optional int64 avg_price = 7;
+	optional string open_hours = 8;
+}
+
+message UpdateShopResponse {
+	bool updated = 1;
+}

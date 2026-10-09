@@ -38,6 +38,13 @@ func main() {
 	}
 	defer userClient.Close()
 
+	shopClient, err := client.NewShopClient(util.Env("SHOP_SERVICE_ADDR", "shop-service:9001"))
+	if err != nil {
+		slog.Error("shop client", "error", err)
+		os.Exit(1)
+	}
+	defer shopClient.Close()
+
 	limiter := ratelimit.New(rdb)
 	sessions := session.NewStore(rdb)
 
@@ -48,6 +55,7 @@ func main() {
 	handler.Routes(e, limiter, sessions,
 		handler.NewUserHandler(userClient),
 		handler.NewAuthHandler(sessions, userClient, limiter),
+		handler.NewShopHandler(shopClient),
 	)
 
 	e.GET("/api/health/deps", func(c *echo.Context) error {

@@ -70,7 +70,7 @@ for svc in SERVICES_WITH_DB:                                # One migrate resour
 
 # sqlc regenerates when a query or a schema file changes. Keeping it in Tilt means
 # you never debug a stale internal/repository.
-local_resource(                                              
+local_resource(
     'sqlc',                                                  # Name shown in the Tilt UI
     cmd='make sqlc',                                         # Regenerate Go code from the SQL queries
     deps=['./services/%s-service/database' % s for s in SERVICES_WITH_DB],  # Watch every service's queries + migrations
@@ -108,5 +108,38 @@ k8s_yaml([                                                   # Apply the user se
 k8s_resource(
     'user-service',                                          # Tilt resource for the user-service Deployment
     resource_deps=['postgres', 'migrate-user'],              # Wait for Postgres + its migrations before starting
+    labels=['services'],                                     # Group under "services"
+)
+
+# ---------- Shop Service ----------
+docker_build_with_restart(                                   # Build the image; restart the binary on live updates
+    'nearbuy/shop-service',                                  # Image name: must match the Deployment's image:
+    '.',                                                     # Build context = repo root
+    dockerfile='./services/shop-service/Dockerfile',         # Which Dockerfile to use
+    entrypoint=['/app/build/server'],                        # Command re-run after each live update
+    only=[                                                   # Only these paths trigger rebuilds (others are ignored)
+        './go.mod',                                          # Go module deps
+        './go.sum',                                          # Go dep checksums
+        './gen',                                             # Generated code
+        './pkg',                                             # Shared packages
+        './services/shop-service',                           # This service's own code
+    ],
+    live_update=[                                            # Fast in-place updates instead of full rebuilds:
+        fall_back_on(['./go.mod', './go.sum']),              # Deps changed? Do a full image rebuild instead
+        sync('./services/shop-service', '/app/services/shop-service'),  # Copy service code into the running container
+        sync('./gen', '/app/gen'),                           # Copy generated code into the container
+        sync('./pkg', '/app/pkg'),                           # Copy shared pkg code into the container
+        run('go build -o /app/build/server ./services/shop-service/cmd/server',  # Recompile the binary inside the container
+            trigger=['./services/shop-service', './gen', './pkg']),  # ...only when these folders change
+    ],
+)
+
+k8s_yaml([                                                   # Apply the shop service's manifests:
+    './deploy/dev/k8s/shop-service-deployment.yaml',         # Deployment (runs the pods)
+    './deploy/dev/k8s/shop-service-svc.yaml',                # Service (stable in-cluster address)
+])
+k8s_resource(
+    'shop-service',                                          # Tilt resource for the shop-service Deployment
+    resource_deps=['postgres', 'redis', 'migrate-shop'],     # Wait for Postgres, Redis + its migrations before starting
     labels=['services'],                                     # Group under "services"
 )
