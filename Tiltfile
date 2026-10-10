@@ -139,7 +139,23 @@ k8s_yaml([                                                   # Apply the shop se
     './deploy/dev/k8s/shop-service-svc.yaml',                # Service (stable in-cluster address)
 ])
 k8s_resource(
-    'shop-service',                                          # Tilt resource for the shop-service Deployment
-    resource_deps=['postgres', 'redis', 'migrate-shop'],     # Wait for Postgres, Redis + its migrations before starting
-    labels=['services'],                                     # Group under "services"
+'shop-service',                                          		     # Tilt resource for the shop-service Deployment
+    resource_deps=['postgres', 'redis', 'kafka-topics', 'migrate-shop'],     # Wait for Postgres, Redis + its migrations before starting
+    labels=['services'],                                     	 	     # Group under "services"
+)
+
+# ---------- Kafka ----------
+# ---------- Kafka ----------
+k8s_yaml('./deploy/dev/k8s/kafka.yaml')                      # Apply the Kafka Service + StatefulSet
+k8s_resource(
+    'kafka',                                                 # Tilt resource for the kafka StatefulSet
+    port_forwards='9092:9092',                               # localhost:9092 -> pod; laptop also needs "127.0.0.1 kafka" in /etc/hosts
+    labels=['infra'],                                        # Group under "infra"
+)
+
+k8s_yaml('./deploy/dev/k8s/kafka-topics-job.yaml')           # Apply the Job that creates the topics
+k8s_resource(
+    'kafka-topics',                                          # Tilt resource for the topic-creating Job
+    resource_deps=['kafka'],                                 # Wait for Kafka before creating topics
+    labels=['init'],                                         # Group under "init"
 )

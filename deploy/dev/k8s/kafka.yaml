@@ -1,0 +1,82 @@
+apiVersion: v1
+kind: Service
+metadata:                               # info about this kafka service
+  name: kafka                           # pods reach Kafka at "kafka:9092"
+spec:                                   # what the Service does
+  ports:                                # list of ports to expose
+    - name: kafka                       # label for this port
+      port: 9092                        # port other pods connect to
+      targetPort: 9092                  # port inside the Kafka container
+  selector:                             # which pods get the traffic
+    app: kafka                          # any pod labeled app=kafka
+
+---
+apiVersion: apps/v1
+kind: StatefulSet                       # like a Deployment, but keeps identity + disk
+metadata:                               # info about this Statefulset
+  name: kafka                           # pod will be called kafka-0
+spec:                                   # how to run it
+  serviceName: kafka                    # links to the Service above
+  replicas: 1                           # just one broker (dev setup)
+  selector:                             # which pods this set manages
+    matchLabels:                        # match by label
+      app: kafka                        # pods labeled app=kafka
+  template:                             # blueprint for the pod
+    metadata:                           # pod info
+      labels:                           # pod labels
+        app: kafka                      # so the Service + selector find it
+    spec:                               # what runs in the pod
+      containers:                       # list of containers
+        - name: kafka                   # container name
+          image: apache/kafka:4.1.2     # official Kafka image, version 4.1.2
+          ports:                        # ports the container uses
+            - containerPort: 9092       # client traffic port
+          env:                          # Kafka settings via env vars
+            - name: KAFKA_NODE_ID                                  # this node's ID
+              value: "1"                                           # ID = 1
+            - name: KAFKA_PROCESS_ROLES                            # what this node does
+              value: "broker,controller"                           # both jobs, no ZooKeeper
+            - name: KAFKA_LISTENERS                                # ports Kafka opens
+              value: "PLAINTEXT://:9092,CONTROLLER://:9093"        # 9092 clients, 9093 internal
+            - name: KAFKA_ADVERTISED_LISTENERS                     # address told to clients
+              value: "PLAINTEXT://kafka:9092"                      # MUST be the Service name, not localhost
+            - name: KAFKA_CONTROLLER_QUORUM_VOTERS                 # who votes on cluster metadata
+              value: "1@localhost:9093"                            # only this node
+            - name: KAFKA_CONTROLLER_LISTENER_NAMES                # which listener is internal
+              value: "CONTROLLER"                                  # the 9093 one
+            - name: KAFKA_LISTENER_SECURITY_PROTOCOL_MAP           # security per listener
+              value: "CONTROLLER:PLAINTEXT,PLAINTEXT:PLAINTEXT"    # no TLS, no auth
+            - name: KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR         # copies of offsets topic
+              value: "1"                                           # 1 broker = 1 copy
+            - name: KAFKA_TRANSACTION_STATE_LOG_REPLICATION_FACTOR # copies of transaction log
+              value: "1"                                           # 1 broker = 1 copy
+            - name: KAFKA_TRANSACTION_STATE_LOG_MIN_ISR            # min in-sync copies needed
+              value: "1"                                           # 1 is enough here
+            - name: KAFKA_GROUP_INITIAL_REBALANCE_DELAY_MS         # wait before assigning partitions
+              value: "0"                                           # don't wait (no 3s dev hang)
+            - name: KAFKA_AUTO_CREATE_TOPICS_ENABLE                # auto-make unknown topics?
+              value: "false"                                       # no, so typos fail loudly
+          volumeMounts:                 # attach disks to the container
+            - name: data                # the disk defined at the bottom
+              mountPath: /var/lib/kafka/data  #Kafka doesn't write here unless KAFKA_LOG_DIRS says so
+          readinessProbe:               # "is Kafka ready for traffic?" check
+            exec:                       # check by running a command
+              command:                  # the command to run
+                - /opt/kafka/bin/kafka-broker-api-versions.sh  # asks Kafka what it supports
+                - --bootstrap-server    # where to connect
+                - localhost:9092        # the broker in this pod
+            initialDelaySeconds: 15     # wait 15s after start before checking
+            periodSeconds: 10           # check every 10s
+            timeoutSeconds: 10          # fail if no answer in 10s
+          resources:                    # CPU/memory limits
+            requests: { cpu: 200m, memory: 512Mi }  # guaranteed minimum
+            limits:   { cpu: "1",  memory: 1Gi }    # hard max; Kafka's default 1G heap may get OOMKilled
+  volumeClaimTemplates:                 # auto-create a disk for each pod
+    - metadata:                         # disk info
+        name: data                      # name used in volumeMounts
+      spec:                             # disk spec
+        accessModes: ["ReadWriteOnce"]  # one node can mount it at a time
+        storageClassName: standard      # type of storage (exists on kind/minikube/GKE)
+        resources:                      # size
+          requests:                     # ask for
+            storage: 2Gi                # 2 GB disk

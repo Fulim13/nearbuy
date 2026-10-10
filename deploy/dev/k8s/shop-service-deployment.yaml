@@ -39,6 +39,8 @@ spec:
                 secretKeyRef: { name: app-secrets, key: POSTGRES_PASSWORD }
             - name: POSTGRES_DSN
               value: "postgres://$(POSTGRES_USER):$(POSTGRES_PASSWORD)@$(POSTGRES_HOST):5432/shop_db?sslmode=disable"
+            - name: KAFKA_BROKERS
+              value: "kafka:9092"
           readinessProbe:
             grpc: { port: 9001 }
             initialDelaySeconds: 2

@@ -8,6 +8,12 @@ import (
 	"time"
 )
 
+type AppliedEvent struct {
+	EventKey  string    `json:"event_key"`
+	Topic     string    `json:"topic"`
+	AppliedAt time.Time `json:"applied_at"`
+}
+
 type Shop struct {
 	ID         int64     `json:"id"`
 	Name       string    `json:"name"`

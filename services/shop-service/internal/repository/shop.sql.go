@@ -9,6 +9,27 @@ import (
 	"context"
 )
 
+const claimEvent = `-- name: ClaimEvent :execrows
+INSERT INTO applied_event (event_key, topic)
+VALUES ($1, $2)
+ON CONFLICT (event_key) DO NOTHING
+`
+
+type ClaimEventParams struct {
+	EventKey string `json:"event_key"`
+	Topic    string `json:"topic"`
+}
+
+// Returns 1 the first time an event_key is seen and 0 on every redelivery, so
+// the caller can skip. Must run in the SAME transaction for ClaimEvent and IncrementShopSold as the effect it guards.
+func (q *Queries) ClaimEvent(ctx context.Context, arg ClaimEventParams) (int64, error) {
+	result, err := q.db.Exec(ctx, claimEvent, arg.EventKey, arg.Topic)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected(), nil
+}
+
 const countShopsByType = `-- name: CountShopsByType :one
 SELECT count(*) FROM shop WHERE type_id = $1
 `
@@ -96,6 +117,24 @@ func (q *Queries) GetShop(ctx context.Context, id int64) (Shop, error) {
 		&i.UpdateTime,
 	)
 	return i, err
+}
+
+const incrementShopSold = `-- name: IncrementShopSold :execrows
+UPDATE shop SET sold = sold + $1::int
+WHERE id = $2
+`
+
+type IncrementShopSoldParams struct {
+	Delta int32 `json:"delta"`
+	ID    int64 `json:"id"`
+}
+
+func (q *Queries) IncrementShopSold(ctx context.Context, arg IncrementShopSoldParams) (int64, error) {
+	result, err := q.db.Exec(ctx, incrementShopSold, arg.Delta, arg.ID)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected(), nil
 }
 
 const listShopTypes = `-- name: ListShopTypes :many

@@ -6,11 +6,14 @@ import (
 	"net"
 	"os"
 	"os/signal"
+	"strings"
 	"syscall"
 
 	"github.com/Fulim13/nearbuy/pkg/cache"
 	"github.com/Fulim13/nearbuy/pkg/grpx"
+	"github.com/Fulim13/nearbuy/pkg/kafkax"
 	"github.com/Fulim13/nearbuy/pkg/util"
+	"github.com/Fulim13/nearbuy/services/shop-service/internal/consumer"
 	"github.com/Fulim13/nearbuy/services/shop-service/internal/handler"
 	"github.com/Fulim13/nearbuy/services/shop-service/internal/service"
 	"github.com/jackc/pgx/v5/pgxpool"
@@ -50,6 +53,28 @@ func main() {
 		Addr: util.Env("REDIS_ADDR", "localhost:6379"),
 	}))
 
+	brokers := strings.Split(util.Env("KAFKA_BROKERS", "localhost:9092"), ",")
+	dlq := kafkax.NewProducer(brokers)
+	defer dlq.Close()
+
+	shopSvc := service.NewShopService(pool, cacheStore)
+	orderStates := kafkax.NewConsumer(kafkax.ConsumerConfig{
+		Brokers: brokers,
+		Topic:   kafkax.TopicOrderState,
+		// The group id is (service, purpose)
+		GroupID: "shop-service.shop-stats",
+	}, dlq)
+
+	consumerDone := make(chan struct{})
+	go func() {
+		defer close(consumerDone)
+		h := consumer.NewOrderStateHandler(shopSvc)
+		if err := orderStates.Run(ctx, h.Handle); err != nil {
+			slog.Error("order state consumer stopped", "error", err)
+			stop()
+		}
+	}()
+
 	grpcServer := grpc.NewServer(
 		// Lifts x-user-id off the wire into the context, so handlers call
 		// grpcx.UserIDFromContext and never touch metadata.
@@ -80,4 +105,10 @@ func main() {
 	// sending new work before we stop accepting it.
 	healthSrv.SetServingStatus("", healthpb.HealthCheckResponse_NOT_SERVING)
 	grpcServer.GracefulStop()
+
+	// Wait for the consumer to finish its in-flight message and commit. Without
+	// this the process can exit mid-handler, and that message redelivers on the
+	// next start -- correct, thanks to applied_event, but noisy and avoidable.
+	<-consumerDone
+	slog.Info("stopped")
 }

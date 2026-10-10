@@ -1,0 +1,37 @@
+apiVersion: batch/v1
+kind: Job                               # runs once until it succeeds, then stops
+metadata:                               # info about this job
+  name: kafka-topics                    # name of the Job
+spec:                                   # how the Job runs
+  backoffLimit: 10                      # give up after 10 failed tries
+  template:                             # blueprint for the pod
+    spec:                               # what runs in the pod
+      restartPolicy: OnFailure          # restart the container if the script fails
+      containers:                       # list of containers
+        - name: topics                  # container name
+          image: apache/kafka:4.1.2     # same image as the broker (has the CLI tools)
+          command:                      # what the container runs
+            - /bin/bash                 # use bash
+            - -c                        # run the text below as a script
+            - |                         # "|" = multi-line script starts here
+              set -euo pipefail                         # stop on any error or unset variable
+              BS=kafka:9092                             # broker address (the Service name)
+              K=/opt/kafka/bin/kafka-topics.sh          # shortcut to the topics tool
+
+              until $K --bootstrap-server $BS --list >/dev/null 2>&1; do  # try listing topics...
+                echo "waiting for kafka..."; sleep 2    # ...not ready yet, wait 2s
+              done                                      # Kafka answered, move on
+
+              create() {                                # helper: create <name> <partitions>
+                $K --bootstrap-server $BS --create --topic "$1" \
+                   --partitions "$2" --replication-factor 1 --if-not-exists  # 1 copy; skip if exists
+              }                                         # end of helper
+
+              create seckill.admitted     3             # main topic, 3 = max 3 parallel consumers
+              create order.state_changed  3             # main topic, 3 = max 3 parallel consumers
+
+              create seckill.admitted.dlq     1         # dead-letter queue: failed messages park here
+              create order.state_changed.dlq  1         # DLQ, 1 partition (nothing reads it automatically)
+
+              echo "--- topics ---"                     # print a header
+              $K --bootstrap-server $BS --list          # show all topics so you can check the logs

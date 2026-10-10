@@ -34,3 +34,14 @@ SET name 	= COALESCE(sqlc.narg('name'), name),
     avg_price 	= COALESCE(sqlc.narg('avg_price'), avg_price),
     open_hours 	= COALESCE(sqlc.narg('open_hours'), open_hours)
 WHERE id = sqlc.arg('id');
+
+-- name: ClaimEvent :execrows
+-- Returns 1 the first time an event_key is seen and 0 on every redelivery, so
+-- the caller can skip. Must run in the SAME transaction for ClaimEvent and IncrementShopSold as the effect it guards.
+INSERT INTO applied_event (event_key, topic)
+VALUES ($1, $2)
+ON CONFLICT (event_key) DO NOTHING;
+
+-- name: IncrementShopSold :execrows
+UPDATE shop SET sold = sold + sqlc.arg('delta')::int
+WHERE id = sqlc.arg('id');

@@ -26,18 +26,34 @@ var ErrShopNotFound = fmt.Errorf("shop not found: %w", cache.ErrNotFound)
 
 type DB interface {
 	repository.DBTX
+	Begin(ctx context.Context) (pgx.Tx, error)
 }
 
 type ShopService struct {
+	db    DB
 	repo  *repository.Queries
 	cache *cache.Cache
 }
 
 func NewShopService(db DB, c *cache.Cache) *ShopService {
-	return &ShopService{
-		repo:  repository.New(db),
-		cache: c,
+      return &ShopService{
+              db:    db,
+              repo:  repository.New(db),
+              cache: c,
+      }
+}
+
+func (s *ShopService) withTx(ctx context.Context, fn func(q *repository.Queries) error) error {
+	tx, err := s.db.Begin(ctx)
+	if err != nil {
+		return err
 	}
+	defer tx.Rollback(ctx)
+
+	if err := fn(s.repo.WithTx(tx)); err != nil {
+		return err
+	}
+	return tx.Commit(ctx)
 }
 
 func (s *ShopService) shopKey(id int64) string {
@@ -130,6 +146,49 @@ func (s *ShopService) UpdateShop(ctx context.Context, arg repository.UpdateShopP
 		slog.Warn("cache del after update", "shop_id", arg.ID, "error", delErr)
 	}
 	return true, nil
+}
+
+// ApplySoldIncrement claims eventKey and increments shop.sold ATOMICALLY.
+//
+// The claim and the effect must share one transaction. Split them and a crash in
+// between either loses the increment (claim committed first) or double-counts it
+// (effect committed first) -- and "shop.sold + 1" gives you no way to detect
+// either afterwards.
+func (s *ShopService) ApplySoldIncrement(ctx context.Context, eventKey, topic string, shopID int64) (bool, error) {
+	var applied bool
+	err := s.withTx(ctx, func(q *repository.Queries) error {
+		claimed, err := q.ClaimEvent(ctx, repository.ClaimEventParams{
+			EventKey: eventKey,
+			Topic:    topic,
+		})
+		if err != nil {
+			return err
+		}
+		if claimed == 0 {
+			return nil // already applied; applied stays false
+		}
+
+		if _, err := q.IncrementShopSold(ctx, repository.IncrementShopSoldParams{
+			ID: shopID, Delta: 1,
+		}); err != nil {
+			return err
+		}
+		applied = true
+		return nil
+	})
+	if err != nil {
+		return false, err
+	}
+
+	// The cached copy of this shop now has a stale `sold`. Invalidate OUTSIDE the
+	// transaction: a cache delete is not transactional, and doing it before the
+	// commit would expose the pre-commit row to the next reader.
+	if applied {
+		if delErr := s.cache.Del(ctx, s.shopKey(shopID)); delErr != nil {
+			slog.Warn("cache del after sold increment", "shop_id", shopID, "error", delErr)
+		}
+	}
+	return applied, nil
 }
 
 func paginate(page, pageSize int32) (limit, offset int32) {
