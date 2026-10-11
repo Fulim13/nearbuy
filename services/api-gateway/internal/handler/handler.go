@@ -13,7 +13,7 @@ import (
 	"google.golang.org/grpc/status"
 )
 
-func Routes(e *echo.Echo, limiter *ratelimit.Limiter, sessions *session.Store, user *UserHandler, auth *AuthHandler, shop *ShopHandler) {
+func Routes(e *echo.Echo, limiter *ratelimit.Limiter, sessions *session.Store, user *UserHandler, auth *AuthHandler, shop *ShopHandler, follow *FollowHandler) {
 	e.GET("/healthz", func(c *echo.Context) error {
 		return c.String(http.StatusOK, "ok")
 	})
@@ -70,6 +70,14 @@ func Routes(e *echo.Echo, limiter *ratelimit.Limiter, sessions *session.Store, u
 	authed.POST("/shops", shop.createShop)
 	authed.PATCH("/shops/:id", shop.updateShop)
 
+	// Public: anyone may see how many followers a user has.
+	api.GET("/users/:id/follow-counts", follow.followCounts)
+
+	// The actor is always the session user, never a path or body field.
+	authed.PUT("/users/:id/follow", follow.follow)
+	authed.DELETE("/users/:id/follow", follow.unfollow)
+	authed.GET("/users/:id/follow", follow.isFollowing)
+	authed.GET("/users/:id/common-following", follow.commonFollowing)
 }
 
 func ping(c *echo.Context) error {

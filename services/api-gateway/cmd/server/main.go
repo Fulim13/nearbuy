@@ -56,6 +56,7 @@ func main() {
 		handler.NewUserHandler(userClient),
 		handler.NewAuthHandler(sessions, userClient, limiter),
 		handler.NewShopHandler(shopClient),
+		handler.NewFollowHandler(userClient),
 	)
 
 	e.GET("/api/health/deps", func(c *echo.Context) error {

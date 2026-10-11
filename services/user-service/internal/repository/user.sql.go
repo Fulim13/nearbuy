@@ -28,6 +28,63 @@ func (q *Queries) AdjustBalance(ctx context.Context, arg AdjustBalanceParams) (i
 	return result.RowsAffected(), nil
 }
 
+const commonFollowing = `-- name: CommonFollowing :many
+SELECT f1.follow_user_id
+FROM follow f1
+JOIN follow f2 ON f2.follow_user_id = f1.follow_user_id
+WHERE f1.user_id = $1
+  AND f2.user_id = $2
+ORDER BY f1.follow_user_id
+`
+
+type CommonFollowingParams struct {
+	A int64 `json:"a"`
+	B int64 `json:"b"`
+}
+
+// The SQL equivalent of Redis SINTER, kept as the fallback when the Redis mirror is cold.
+func (q *Queries) CommonFollowing(ctx context.Context, arg CommonFollowingParams) ([]int64, error) {
+	rows, err := q.db.Query(ctx, commonFollowing, arg.A, arg.B)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []int64
+	for rows.Next() {
+		var follow_user_id int64
+		if err := rows.Scan(&follow_user_id); err != nil {
+			return nil, err
+		}
+		items = append(items, follow_user_id)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const countFollowers = `-- name: CountFollowers :one
+SELECT count(*) FROM follow WHERE follow_user_id = $1
+`
+
+func (q *Queries) CountFollowers(ctx context.Context, followUserID int64) (int64, error) {
+	row := q.db.QueryRow(ctx, countFollowers, followUserID)
+	var count int64
+	err := row.Scan(&count)
+	return count, err
+}
+
+const countFollowing = `-- name: CountFollowing :one
+SELECT count(*) FROM follow WHERE user_id = $1
+`
+
+func (q *Queries) CountFollowing(ctx context.Context, userID int64) (int64, error) {
+	row := q.db.QueryRow(ctx, countFollowing, userID)
+	var count int64
+	err := row.Scan(&count)
+	return count, err
+}
+
 const createUser = `-- name: CreateUser :one
 INSERT INTO app_user (phone, nick_name)
 VALUES ($1, $2)
@@ -110,6 +167,28 @@ func (q *Queries) CreateUserByPhone(ctx context.Context, arg CreateUserByPhonePa
 	return i, err
 }
 
+const follow = `-- name: Follow :execrows
+INSERT INTO follow (user_id, follow_user_id)
+VALUES ($1, $2)
+ON CONFLICT (user_id, follow_user_id) DO NOTHING
+`
+
+type FollowParams struct {
+	UserID       int64 `json:"user_id"`
+	FollowUserID int64 `json:"follow_user_id"`
+}
+
+// ON CONFLICT DO NOTHING so a double-tap is a no-op rather than an error. The
+// original has no unique constraint at all, so following twice inflates the
+// target's follower count permanently.
+func (q *Queries) Follow(ctx context.Context, arg FollowParams) (int64, error) {
+	result, err := q.db.Exec(ctx, follow, arg.UserID, arg.FollowUserID)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected(), nil
+}
+
 const getUser = `-- name: GetUser :one
 SELECT id, phone, password, nick_name, icon, city, introduce, fans, followee, gender, birthday, credits, level, balance, trading_balance, create_time, update_time FROM app_user WHERE id = $1
 `
@@ -166,6 +245,66 @@ func (q *Queries) GetUserByPhone(ctx context.Context, phone string) (AppUser, er
 		&i.UpdateTime,
 	)
 	return i, err
+}
+
+const isFollowing = `-- name: IsFollowing :one
+SELECT EXISTS (
+  SELECT 1 FROM follow WHERE user_id = $1 AND follow_user_id = $2
+)
+`
+
+type IsFollowingParams struct {
+	UserID       int64 `json:"user_id"`
+	FollowUserID int64 `json:"follow_user_id"`
+}
+
+func (q *Queries) IsFollowing(ctx context.Context, arg IsFollowingParams) (bool, error) {
+	row := q.db.QueryRow(ctx, isFollowing, arg.UserID, arg.FollowUserID)
+	var exists bool
+	err := row.Scan(&exists)
+	return exists, err
+}
+
+const listFollowing = `-- name: ListFollowing :many
+SELECT follow_user_id FROM follow WHERE user_id = $1 ORDER BY follow_user_id
+`
+
+func (q *Queries) ListFollowing(ctx context.Context, userID int64) ([]int64, error) {
+	rows, err := q.db.Query(ctx, listFollowing, userID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []int64
+	for rows.Next() {
+		var follow_user_id int64
+		if err := rows.Scan(&follow_user_id); err != nil {
+			return nil, err
+		}
+		items = append(items, follow_user_id)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const unfollow = `-- name: Unfollow :execrows
+DELETE FROM follow
+WHERE user_id = $1 AND follow_user_id = $2
+`
+
+type UnfollowParams struct {
+	UserID       int64 `json:"user_id"`
+	FollowUserID int64 `json:"follow_user_id"`
+}
+
+func (q *Queries) Unfollow(ctx context.Context, arg UnfollowParams) (int64, error) {
+	result, err := q.db.Exec(ctx, unfollow, arg.UserID, arg.FollowUserID)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected(), nil
 }
 
 const updateUserProfile = `-- name: UpdateUserProfile :execrows

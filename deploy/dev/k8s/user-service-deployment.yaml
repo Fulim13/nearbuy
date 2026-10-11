@@ -36,6 +36,9 @@ spec:
             # $(VAR) expands from env vars declared EARLIER in this list.
             - name: POSTGRES_DSN
               value: "postgres://$(POSTGRES_USER):$(POSTGRES_PASSWORD)@$(POSTGRES_HOST):5432/user_db?sslmode=disable"
+            - name: REDIS_ADDR
+              valueFrom:
+                configMapKeyRef: { name: app-config, key: REDIS_ADDR }
           # Native gRPC probes, GA since k8s 1.27. No grpc_health_probe binary in
           # the image, no HTTP port opened just to be checked.
           readinessProbe:

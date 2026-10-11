@@ -38,3 +38,39 @@ INSERT INTO app_user (phone, nick_name)
 VALUES ($1, $2)
 ON CONFLICT (phone) DO UPDATE SET phone = EXCLUDED.phone
 RETURNING *;
+
+-- name: Follow :execrows
+-- ON CONFLICT DO NOTHING so a double-tap is a no-op rather than an error. The
+-- original has no unique constraint at all, so following twice inflates the
+-- target's follower count permanently.
+INSERT INTO follow (user_id, follow_user_id)
+VALUES ($1, $2)
+ON CONFLICT (user_id, follow_user_id) DO NOTHING;
+
+-- name: Unfollow :execrows
+DELETE FROM follow
+WHERE user_id = $1 AND follow_user_id = $2;
+
+-- name: IsFollowing :one
+SELECT EXISTS (
+  SELECT 1 FROM follow WHERE user_id = $1 AND follow_user_id = $2
+);
+
+-- name: ListFollowing :many
+SELECT follow_user_id FROM follow WHERE user_id = $1 ORDER BY follow_user_id;
+
+-- name: CommonFollowing :many
+-- The SQL equivalent of Redis SINTER, kept as the fallback when the Redis mirror is cold.
+SELECT f1.follow_user_id
+FROM follow f1
+JOIN follow f2 ON f2.follow_user_id = f1.follow_user_id
+WHERE f1.user_id = sqlc.arg('a')
+  AND f2.user_id = sqlc.arg('b')
+ORDER BY f1.follow_user_id;
+
+
+-- name: CountFollowing :one
+SELECT count(*) FROM follow WHERE user_id = $1;
+
+-- name: CountFollowers :one
+SELECT count(*) FROM follow WHERE follow_user_id = $1;

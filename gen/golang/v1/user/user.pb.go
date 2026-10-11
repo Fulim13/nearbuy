@@ -273,6 +273,331 @@ func (x *GetOrCreateUserByPhoneResponse) GetCreated() bool {
 	return false
 }
 
+// Follow and Unfollow share a message: both are (actor, target) and nothing else.
+type FollowRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	UserId        int64                  `protobuf:"varint,1,opt,name=user_id,json=userId,proto3" json:"user_id,omitempty"` // the actor, from x-user-id
+	TargetId      int64                  `protobuf:"varint,2,opt,name=target_id,json=targetId,proto3" json:"target_id,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *FollowRequest) Reset() {
+	*x = FollowRequest{}
+	mi := &file_user_proto_msgTypes[5]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *FollowRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*FollowRequest) ProtoMessage() {}
+
+func (x *FollowRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_user_proto_msgTypes[5]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use FollowRequest.ProtoReflect.Descriptor instead.
+func (*FollowRequest) Descriptor() ([]byte, []int) {
+	return file_user_proto_rawDescGZIP(), []int{5}
+}
+
+func (x *FollowRequest) GetUserId() int64 {
+	if x != nil {
+		return x.UserId
+	}
+	return 0
+}
+
+func (x *FollowRequest) GetTargetId() int64 {
+	if x != nil {
+		return x.TargetId
+	}
+	return 0
+}
+
+type FollowResponse struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *FollowResponse) Reset() {
+	*x = FollowResponse{}
+	mi := &file_user_proto_msgTypes[6]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *FollowResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*FollowResponse) ProtoMessage() {}
+
+func (x *FollowResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_user_proto_msgTypes[6]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use FollowResponse.ProtoReflect.Descriptor instead.
+func (*FollowResponse) Descriptor() ([]byte, []int) {
+	return file_user_proto_rawDescGZIP(), []int{6}
+}
+
+type IsFollowingResponse struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Following     bool                   `protobuf:"varint,1,opt,name=following,proto3" json:"following,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *IsFollowingResponse) Reset() {
+	*x = IsFollowingResponse{}
+	mi := &file_user_proto_msgTypes[7]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *IsFollowingResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*IsFollowingResponse) ProtoMessage() {}
+
+func (x *IsFollowingResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_user_proto_msgTypes[7]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use IsFollowingResponse.ProtoReflect.Descriptor instead.
+func (*IsFollowingResponse) Descriptor() ([]byte, []int) {
+	return file_user_proto_rawDescGZIP(), []int{7}
+}
+
+func (x *IsFollowingResponse) GetFollowing() bool {
+	if x != nil {
+		return x.Following
+	}
+	return false
+}
+
+type CommonFollowingRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	UserId        int64                  `protobuf:"varint,1,opt,name=user_id,json=userId,proto3" json:"user_id,omitempty"`
+	OtherId       int64                  `protobuf:"varint,2,opt,name=other_id,json=otherId,proto3" json:"other_id,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *CommonFollowingRequest) Reset() {
+	*x = CommonFollowingRequest{}
+	mi := &file_user_proto_msgTypes[8]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *CommonFollowingRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*CommonFollowingRequest) ProtoMessage() {}
+
+func (x *CommonFollowingRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_user_proto_msgTypes[8]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use CommonFollowingRequest.ProtoReflect.Descriptor instead.
+func (*CommonFollowingRequest) Descriptor() ([]byte, []int) {
+	return file_user_proto_rawDescGZIP(), []int{8}
+}
+
+func (x *CommonFollowingRequest) GetUserId() int64 {
+	if x != nil {
+		return x.UserId
+	}
+	return 0
+}
+
+func (x *CommonFollowingRequest) GetOtherId() int64 {
+	if x != nil {
+		return x.OtherId
+	}
+	return 0
+}
+
+type CommonFollowingResponse struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Users         []*PublicUser          `protobuf:"bytes,1,rep,name=users,proto3" json:"users,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *CommonFollowingResponse) Reset() {
+	*x = CommonFollowingResponse{}
+	mi := &file_user_proto_msgTypes[9]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *CommonFollowingResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*CommonFollowingResponse) ProtoMessage() {}
+
+func (x *CommonFollowingResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_user_proto_msgTypes[9]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use CommonFollowingResponse.ProtoReflect.Descriptor instead.
+func (*CommonFollowingResponse) Descriptor() ([]byte, []int) {
+	return file_user_proto_rawDescGZIP(), []int{9}
+}
+
+func (x *CommonFollowingResponse) GetUsers() []*PublicUser {
+	if x != nil {
+		return x.Users
+	}
+	return nil
+}
+
+type FollowCountsRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	UserId        int64                  `protobuf:"varint,1,opt,name=user_id,json=userId,proto3" json:"user_id,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *FollowCountsRequest) Reset() {
+	*x = FollowCountsRequest{}
+	mi := &file_user_proto_msgTypes[10]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *FollowCountsRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*FollowCountsRequest) ProtoMessage() {}
+
+func (x *FollowCountsRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_user_proto_msgTypes[10]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use FollowCountsRequest.ProtoReflect.Descriptor instead.
+func (*FollowCountsRequest) Descriptor() ([]byte, []int) {
+	return file_user_proto_rawDescGZIP(), []int{10}
+}
+
+func (x *FollowCountsRequest) GetUserId() int64 {
+	if x != nil {
+		return x.UserId
+	}
+	return 0
+}
+
+type FollowCountsResponse struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Following     int64                  `protobuf:"varint,1,opt,name=following,proto3" json:"following,omitempty"` // how many this user follows
+	Followers     int64                  `protobuf:"varint,2,opt,name=followers,proto3" json:"followers,omitempty"` // how many follow this user
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *FollowCountsResponse) Reset() {
+	*x = FollowCountsResponse{}
+	mi := &file_user_proto_msgTypes[11]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *FollowCountsResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*FollowCountsResponse) ProtoMessage() {}
+
+func (x *FollowCountsResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_user_proto_msgTypes[11]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use FollowCountsResponse.ProtoReflect.Descriptor instead.
+func (*FollowCountsResponse) Descriptor() ([]byte, []int) {
+	return file_user_proto_rawDescGZIP(), []int{11}
+}
+
+func (x *FollowCountsResponse) GetFollowing() int64 {
+	if x != nil {
+		return x.Following
+	}
+	return 0
+}
+
+func (x *FollowCountsResponse) GetFollowers() int64 {
+	if x != nil {
+		return x.Followers
+	}
+	return 0
+}
+
 var File_user_proto protoreflect.FileDescriptor
 
 const file_user_proto_rawDesc = "" +
@@ -293,10 +618,31 @@ const file_user_proto_rawDesc = "" +
 	"\x11default_nick_name\x18\x02 \x01(\tR\x0fdefaultNickName\"c\n" +
 	"\x1eGetOrCreateUserByPhoneResponse\x12'\n" +
 	"\x04user\x18\x01 \x01(\v2\x13.user.v1.PublicUserR\x04user\x12\x18\n" +
-	"\acreated\x18\x02 \x01(\bR\acreated2\xaf\x01\n" +
+	"\acreated\x18\x02 \x01(\bR\acreated\"E\n" +
+	"\rFollowRequest\x12\x17\n" +
+	"\auser_id\x18\x01 \x01(\x03R\x06userId\x12\x1b\n" +
+	"\ttarget_id\x18\x02 \x01(\x03R\btargetId\"\x10\n" +
+	"\x0eFollowResponse\"3\n" +
+	"\x13IsFollowingResponse\x12\x1c\n" +
+	"\tfollowing\x18\x01 \x01(\bR\tfollowing\"L\n" +
+	"\x16CommonFollowingRequest\x12\x17\n" +
+	"\auser_id\x18\x01 \x01(\x03R\x06userId\x12\x19\n" +
+	"\bother_id\x18\x02 \x01(\x03R\aotherId\"D\n" +
+	"\x17CommonFollowingResponse\x12)\n" +
+	"\x05users\x18\x01 \x03(\v2\x13.user.v1.PublicUserR\x05users\".\n" +
+	"\x13FollowCountsRequest\x12\x17\n" +
+	"\auser_id\x18\x01 \x01(\x03R\x06userId\"R\n" +
+	"\x14FollowCountsResponse\x12\x1c\n" +
+	"\tfollowing\x18\x01 \x01(\x03R\tfollowing\x12\x1c\n" +
+	"\tfollowers\x18\x02 \x01(\x03R\tfollowers2\x8f\x04\n" +
 	"\x04User\x12<\n" +
 	"\aGetUser\x12\x17.user.v1.GetUserRequest\x1a\x18.user.v1.GetUserResponse\x12i\n" +
-	"\x16GetOrCreateUserByPhone\x12&.user.v1.GetOrCreateUserByPhoneRequest\x1a'.user.v1.GetOrCreateUserByPhoneResponseB4Z2github.com/Fulim13/nearbuy/gen/golang/v1/user;userb\x06proto3"
+	"\x16GetOrCreateUserByPhone\x12&.user.v1.GetOrCreateUserByPhoneRequest\x1a'.user.v1.GetOrCreateUserByPhoneResponse\x129\n" +
+	"\x06Follow\x12\x16.user.v1.FollowRequest\x1a\x17.user.v1.FollowResponse\x12;\n" +
+	"\bUnfollow\x12\x16.user.v1.FollowRequest\x1a\x17.user.v1.FollowResponse\x12C\n" +
+	"\vIsFollowing\x12\x16.user.v1.FollowRequest\x1a\x1c.user.v1.IsFollowingResponse\x12T\n" +
+	"\x0fCommonFollowing\x12\x1f.user.v1.CommonFollowingRequest\x1a .user.v1.CommonFollowingResponse\x12K\n" +
+	"\fFollowCounts\x12\x1c.user.v1.FollowCountsRequest\x1a\x1d.user.v1.FollowCountsResponseB4Z2github.com/Fulim13/nearbuy/gen/golang/v1/user;userb\x06proto3"
 
 var (
 	file_user_proto_rawDescOnce sync.Once
@@ -310,26 +656,44 @@ func file_user_proto_rawDescGZIP() []byte {
 	return file_user_proto_rawDescData
 }
 
-var file_user_proto_msgTypes = make([]protoimpl.MessageInfo, 5)
+var file_user_proto_msgTypes = make([]protoimpl.MessageInfo, 12)
 var file_user_proto_goTypes = []any{
 	(*PublicUser)(nil),                     // 0: user.v1.PublicUser
 	(*GetUserRequest)(nil),                 // 1: user.v1.GetUserRequest
 	(*GetUserResponse)(nil),                // 2: user.v1.GetUserResponse
 	(*GetOrCreateUserByPhoneRequest)(nil),  // 3: user.v1.GetOrCreateUserByPhoneRequest
 	(*GetOrCreateUserByPhoneResponse)(nil), // 4: user.v1.GetOrCreateUserByPhoneResponse
+	(*FollowRequest)(nil),                  // 5: user.v1.FollowRequest
+	(*FollowResponse)(nil),                 // 6: user.v1.FollowResponse
+	(*IsFollowingResponse)(nil),            // 7: user.v1.IsFollowingResponse
+	(*CommonFollowingRequest)(nil),         // 8: user.v1.CommonFollowingRequest
+	(*CommonFollowingResponse)(nil),        // 9: user.v1.CommonFollowingResponse
+	(*FollowCountsRequest)(nil),            // 10: user.v1.FollowCountsRequest
+	(*FollowCountsResponse)(nil),           // 11: user.v1.FollowCountsResponse
 }
 var file_user_proto_depIdxs = []int32{
-	0, // 0: user.v1.GetUserResponse.user:type_name -> user.v1.PublicUser
-	0, // 1: user.v1.GetOrCreateUserByPhoneResponse.user:type_name -> user.v1.PublicUser
-	1, // 2: user.v1.User.GetUser:input_type -> user.v1.GetUserRequest
-	3, // 3: user.v1.User.GetOrCreateUserByPhone:input_type -> user.v1.GetOrCreateUserByPhoneRequest
-	2, // 4: user.v1.User.GetUser:output_type -> user.v1.GetUserResponse
-	4, // 5: user.v1.User.GetOrCreateUserByPhone:output_type -> user.v1.GetOrCreateUserByPhoneResponse
-	4, // [4:6] is the sub-list for method output_type
-	2, // [2:4] is the sub-list for method input_type
-	2, // [2:2] is the sub-list for extension type_name
-	2, // [2:2] is the sub-list for extension extendee
-	0, // [0:2] is the sub-list for field type_name
+	0,  // 0: user.v1.GetUserResponse.user:type_name -> user.v1.PublicUser
+	0,  // 1: user.v1.GetOrCreateUserByPhoneResponse.user:type_name -> user.v1.PublicUser
+	0,  // 2: user.v1.CommonFollowingResponse.users:type_name -> user.v1.PublicUser
+	1,  // 3: user.v1.User.GetUser:input_type -> user.v1.GetUserRequest
+	3,  // 4: user.v1.User.GetOrCreateUserByPhone:input_type -> user.v1.GetOrCreateUserByPhoneRequest
+	5,  // 5: user.v1.User.Follow:input_type -> user.v1.FollowRequest
+	5,  // 6: user.v1.User.Unfollow:input_type -> user.v1.FollowRequest
+	5,  // 7: user.v1.User.IsFollowing:input_type -> user.v1.FollowRequest
+	8,  // 8: user.v1.User.CommonFollowing:input_type -> user.v1.CommonFollowingRequest
+	10, // 9: user.v1.User.FollowCounts:input_type -> user.v1.FollowCountsRequest
+	2,  // 10: user.v1.User.GetUser:output_type -> user.v1.GetUserResponse
+	4,  // 11: user.v1.User.GetOrCreateUserByPhone:output_type -> user.v1.GetOrCreateUserByPhoneResponse
+	6,  // 12: user.v1.User.Follow:output_type -> user.v1.FollowResponse
+	6,  // 13: user.v1.User.Unfollow:output_type -> user.v1.FollowResponse
+	7,  // 14: user.v1.User.IsFollowing:output_type -> user.v1.IsFollowingResponse
+	9,  // 15: user.v1.User.CommonFollowing:output_type -> user.v1.CommonFollowingResponse
+	11, // 16: user.v1.User.FollowCounts:output_type -> user.v1.FollowCountsResponse
+	10, // [10:17] is the sub-list for method output_type
+	3,  // [3:10] is the sub-list for method input_type
+	3,  // [3:3] is the sub-list for extension type_name
+	3,  // [3:3] is the sub-list for extension extendee
+	0,  // [0:3] is the sub-list for field type_name
 }
 
 func init() { file_user_proto_init() }
@@ -343,7 +707,7 @@ func file_user_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_user_proto_rawDesc), len(file_user_proto_rawDesc)),
 			NumEnums:      0,
-			NumMessages:   5,
+			NumMessages:   12,
 			NumExtensions: 0,
 			NumServices:   1,
 		},

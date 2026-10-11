@@ -10,6 +10,7 @@ import (
 
 	"github.com/Fulim13/nearbuy/pkg/grpx"
 	"github.com/Fulim13/nearbuy/pkg/util"
+	"github.com/redis/go-redis/v9"
 
 	"github.com/Fulim13/nearbuy/services/user-service/internal/handler"
 	"github.com/Fulim13/nearbuy/services/user-service/internal/service"
@@ -37,6 +38,9 @@ func main() {
 		os.Exit(1)
 	}
 
+	rdb := redis.NewClient(&redis.Options{Addr: util.Env("REDIS_ADDR", "localhost:6379")})
+	defer rdb.Close()
+
 	port := util.Env("GRPC_PORT", "9000")
 	listener, err := net.Listen("tcp", ":"+port)
 	if err != nil {
@@ -47,7 +51,11 @@ func main() {
 	grpcServer := grpc.NewServer(
 		grpc.ChainUnaryInterceptor(grpx.UnaryServerInterceptor()),
 	)
-	handler.NewGRPCHandler(grpcServer, service.NewUserService(pool))
+	handler.NewGRPCHandler(
+		grpcServer,
+		service.NewUserService(pool),
+		service.NewFollowService(pool, rdb),
+	)
 
 	// Backs the k8s grpc: probe. Registered last so it only reports SERVING once
 	// every real service is registered.
