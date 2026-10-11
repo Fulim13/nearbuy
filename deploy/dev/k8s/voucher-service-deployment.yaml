@@ -1,0 +1,53 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: voucher-service
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: voucher-service
+  template:
+    metadata:
+      labels:
+        app: voucher-service
+    spec:
+      containers:
+        - name: voucher-service
+          image: nearbuy/voucher-service
+          imagePullPolicy: IfNotPresent
+          ports:
+            - containerPort: 9000
+          env:
+            - name: GRPC_PORT
+              value: "9000"
+            - name: POD_NAME
+              valueFrom:
+                fieldRef: { fieldPath: metadata.name }
+            # Redis holds the seckill counters and the id generator's INCR key,
+            # so this is a hard dependency, not a cache.
+            - name: REDIS_ADDR
+              valueFrom:
+                configMapKeyRef: { name: app-config, key: REDIS_ADDR }
+            - name: POSTGRES_HOST
+              valueFrom:
+                configMapKeyRef: { name: app-config, key: POSTGRES_HOST }
+            - name: POSTGRES_USER
+              valueFrom:
+                secretKeyRef: { name: app-secrets, key: POSTGRES_USER }
+            - name: POSTGRES_PASSWORD
+              valueFrom:
+                secretKeyRef: { name: app-secrets, key: POSTGRES_PASSWORD }
+            - name: POSTGRES_DSN
+              value: "postgres://$(POSTGRES_USER):$(POSTGRES_PASSWORD)@$(POSTGRES_HOST):5432/voucher_db?sslmode=disable"
+          readinessProbe:
+            grpc: { port: 9000 }
+            initialDelaySeconds: 2
+            periodSeconds: 5
+          livenessProbe:
+            grpc: { port: 9000 }
+            initialDelaySeconds: 10
+            periodSeconds: 10
+          resources:
+            requests: { cpu: 100m, memory: 128Mi }
+            limits:   { cpu: 500m, memory: 512Mi }

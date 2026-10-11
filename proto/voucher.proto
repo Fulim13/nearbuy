@@ -1,0 +1,78 @@
+syntax = "proto3";
+
+package voucher.v1;
+
+option go_package = "github.com/Fulim13/nearbuy/gen/golang/v1/voucher;voucher";
+
+service Voucher {
+  rpc GetVoucher(GetVoucherRequest) returns (GetVoucherResponse);
+  rpc ListVouchersByShop(ListVouchersByShopRequest) returns (ListVouchersByShopResponse);
+  rpc CreateVoucher(CreateVoucherRequest) returns (CreateVoucherResponse);
+  rpc CreateSeckillVoucher(CreateSeckillVoucherRequest) returns (CreateVoucherResponse);
+
+  // NextOrderID is called by the gateway before the seckill admission, so the
+  // 202 can carry an order id that no row exists for yet.
+  rpc NextOrderID(NextOrderIDRequest) returns (NextOrderIDResponse);
+}
+
+// VoucherInfo, not Voucher: a message cannot share its name with the service in
+// the same proto package.
+message VoucherInfo {
+	int64  id           = 1;
+	int64  shop_id      = 2;
+	string title        = 3;
+	string sub_title    = 4;
+	string rules        = 5;
+	int64  pay_value    = 6;   // cents
+	int64  actual_value = 7;   // cents
+	string type         = 8;   // "normal" | "seckill"
+	string status       = 9;   // "active" | "inactive" | "expired"
+
+	// Only set for a seckill voucher. optional so "normal voucher" is
+	// distinguishable from "seckill with 0 stock".
+	optional int32  stock      = 10;
+	optional string begin_time = 11;  // RFC3339
+	optional string end_time   = 12;
+}
+
+message GetVoucherRequest  {
+	int64 id = 1;
+}
+
+message GetVoucherResponse {
+	VoucherInfo voucher = 1;
+}
+
+message ListVouchersByShopRequest  {
+	int64 shop_id = 1;
+}
+
+message ListVouchersByShopResponse {
+	repeated VoucherInfo vouchers = 1;
+}
+
+message CreateVoucherRequest {
+	int64  shop_id      = 1;
+	string title        = 2;
+	string sub_title    = 3;
+	string rules        = 4;
+	int64  pay_value    = 5;
+	int64  actual_value = 6;
+}
+
+message CreateVoucherResponse {
+	VoucherInfo voucher = 1;
+}
+
+message CreateSeckillVoucherRequest {
+	CreateVoucherRequest voucher    = 1;
+	int32                stock      = 2;
+	string               begin_time = 3;  // RFC3339
+	string               end_time   = 4;
+}
+
+message NextOrderIDRequest  {}
+
+message NextOrderIDResponse {
+	int64 order_id = 1;
+}

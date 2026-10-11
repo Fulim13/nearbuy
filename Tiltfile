@@ -145,7 +145,6 @@ k8s_resource(
 )
 
 # ---------- Kafka ----------
-# ---------- Kafka ----------
 k8s_yaml('./deploy/dev/k8s/kafka.yaml')                      # Apply the Kafka Service + StatefulSet
 k8s_resource(
     'kafka',                                                 # Tilt resource for the kafka StatefulSet
@@ -158,4 +157,38 @@ k8s_resource(
     'kafka-topics',                                          # Tilt resource for the topic-creating Job
     resource_deps=['kafka'],                                 # Wait for Kafka before creating topics
     labels=['init'],                                         # Group under "init"
+)
+
+
+# ---------- Voucher Service ----------
+docker_build_with_restart(                                   # Build the image; restart the binary on live updates
+    'nearbuy/voucher-service',                               # Image name: must match the Deployment's image:
+    '.',                                                     # Build context = repo root
+    dockerfile='./services/voucher-service/Dockerfile',      # Which Dockerfile to use
+    entrypoint=['/app/build/server'],                        # Command re-run after each live update
+    only=[                                                   # Only these paths trigger rebuilds (others are ignored)
+        './go.mod',                                          # Go module deps
+        './go.sum',                                          # Go dep checksums
+        './gen',                                             # Generated code
+        './pkg',                                             # Shared packages
+        './services/voucher-service',                        # This service's own code
+    ],
+    live_update=[                                            # Fast in-place updates instead of full rebuilds:
+        fall_back_on(['./go.mod', './go.sum']),              # Deps changed? Do a full image rebuild instead
+        sync('./services/voucher-service', '/app/services/voucher-service'),  # Copy service code into the running container
+        sync('./gen', '/app/gen'),                           # Copy generated code into the container
+        sync('./pkg', '/app/pkg'),                           # Copy shared pkg code into the container
+        run('go build -o /app/build/server ./services/voucher-service/cmd/server',  # Recompile the binary inside the container
+            trigger=['./services/voucher-service', './gen', './pkg']),  # ...only when these folders change
+    ],
+)
+
+k8s_yaml([                                                   # Apply the voucher service's manifests:
+    './deploy/dev/k8s/voucher-service-deployment.yaml',      # Deployment (runs the pods)
+    './deploy/dev/k8s/voucher-service-svc.yaml',             # Service (stable in-cluster address)
+])
+k8s_resource(
+    'voucher-service',                                       # Tilt resource for the voucher-service Deployment
+    resource_deps=['postgres', 'redis', 'migrate-voucher'],  # Wait for Postgres, Redis + its migrations before starting
+    labels=['services'],                                     # Group under "services"
 )

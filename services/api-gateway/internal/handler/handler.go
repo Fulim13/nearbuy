@@ -13,7 +13,7 @@ import (
 	"google.golang.org/grpc/status"
 )
 
-func Routes(e *echo.Echo, limiter *ratelimit.Limiter, sessions *session.Store, user *UserHandler, auth *AuthHandler, shop *ShopHandler, follow *FollowHandler) {
+func Routes(e *echo.Echo, limiter *ratelimit.Limiter, sessions *session.Store, user *UserHandler, auth *AuthHandler, shop *ShopHandler, follow *FollowHandler, voucher *VoucherHandler) {
 	e.GET("/healthz", func(c *echo.Context) error {
 		return c.String(http.StatusOK, "ok")
 	})
@@ -78,6 +78,14 @@ func Routes(e *echo.Echo, limiter *ratelimit.Limiter, sessions *session.Store, u
 	authed.DELETE("/users/:id/follow", follow.unfollow)
 	authed.GET("/users/:id/follow", follow.isFollowing)
 	authed.GET("/users/:id/common-following", follow.commonFollowing)
+
+	// Public.
+	api.GET("/vouchers/:id", voucher.getVoucher)
+	api.GET("/shops/:shopId/vouchers", voucher.listByShop)
+
+	// Authenticated.
+	authed.POST("/vouchers", voucher.createVoucher)
+	authed.POST("/vouchers/seckill", voucher.createSeckillVoucher)
 }
 
 func ping(c *echo.Context) error {

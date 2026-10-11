@@ -45,6 +45,13 @@ func main() {
 	}
 	defer shopClient.Close()
 
+	voucherClient, err := client.NewVoucherClient(util.Env("VOUCHER_SERVICE_ADDR", "voucher-service:9000"))
+	if err != nil {
+		slog.Error("voucher client", "error", err)
+		os.Exit(1)
+	}
+	defer voucherClient.Close()
+
 	limiter := ratelimit.New(rdb)
 	sessions := session.NewStore(rdb)
 
@@ -57,6 +64,7 @@ func main() {
 		handler.NewAuthHandler(sessions, userClient, limiter),
 		handler.NewShopHandler(shopClient),
 		handler.NewFollowHandler(userClient),
+		handler.NewVoucherHandler(voucherClient),
 	)
 
 	e.GET("/api/health/deps", func(c *echo.Context) error {
