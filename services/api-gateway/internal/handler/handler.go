@@ -86,6 +86,10 @@ func Routes(e *echo.Echo, limiter *ratelimit.Limiter, sessions *session.Store, u
 	// Authenticated.
 	authed.POST("/vouchers", voucher.createVoucher)
 	authed.POST("/vouchers/seckill", voucher.createSeckillVoucher)
+
+	// The seckill itself. POST because it attempts to create something; the
+	// voucher id is in the path and the user comes from the session.
+	authed.POST("/voucher-order/seckill/:id", voucher.seckill)
 }
 
 func ping(c *echo.Context) error {

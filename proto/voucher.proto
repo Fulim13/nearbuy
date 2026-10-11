@@ -13,6 +13,9 @@ service Voucher {
   // NextOrderID is called by the gateway before the seckill admission, so the
   // 202 can carry an order id that no row exists for yet.
   rpc NextOrderID(NextOrderIDRequest) returns (NextOrderIDResponse);
+  // Seckill is the admission. It returns an order id for an ADMITTED caller and
+  // a reason code for everyone else -- no order row exists yet either way.
+  rpc Seckill(SeckillRequest) returns (SeckillResponse);
 }
 
 // VoucherInfo, not Voucher: a message cannot share its name with the service in
@@ -75,4 +78,28 @@ message NextOrderIDRequest  {}
 
 message NextOrderIDResponse {
 	int64 order_id = 1;
+}
+
+message SeckillRequest {
+	int64 voucher_id = 1;
+	int64 user_id    = 2;  // the actor, from x-user-id
+}
+
+message SeckillResponse {
+	bool   admitted = 1;
+	int64  order_id = 2;   // 0 unless admitted
+	string reason   = 3;   // human-readable rejection, empty when admitted
+	// The machine-readable code, so the gateway can pick an HTTP status without
+	// string-matching the reason.
+	SeckillCode code = 4;
+}
+
+enum SeckillCode {
+	SECKILL_CODE_UNSPECIFIED     = 0;
+	SECKILL_CODE_ADMITTED        = 1;
+	SECKILL_CODE_OUT_OF_STOCK    = 2;
+	SECKILL_CODE_ALREADY_ORDERED = 3;
+	SECKILL_CODE_NOT_STARTED     = 4;
+	SECKILL_CODE_FINISHED        = 5;
+	SECKILL_CODE_UNKNOWN_VOUCHER = 6;
 }

@@ -24,6 +24,7 @@ const (
 	Voucher_CreateVoucher_FullMethodName        = "/voucher.v1.Voucher/CreateVoucher"
 	Voucher_CreateSeckillVoucher_FullMethodName = "/voucher.v1.Voucher/CreateSeckillVoucher"
 	Voucher_NextOrderID_FullMethodName          = "/voucher.v1.Voucher/NextOrderID"
+	Voucher_Seckill_FullMethodName              = "/voucher.v1.Voucher/Seckill"
 )
 
 // VoucherClient is the client API for Voucher service.
@@ -37,6 +38,9 @@ type VoucherClient interface {
 	// NextOrderID is called by the gateway before the seckill admission, so the
 	// 202 can carry an order id that no row exists for yet.
 	NextOrderID(ctx context.Context, in *NextOrderIDRequest, opts ...grpc.CallOption) (*NextOrderIDResponse, error)
+	// Seckill is the admission. It returns an order id for an ADMITTED caller and
+	// a reason code for everyone else -- no order row exists yet either way.
+	Seckill(ctx context.Context, in *SeckillRequest, opts ...grpc.CallOption) (*SeckillResponse, error)
 }
 
 type voucherClient struct {
@@ -97,6 +101,16 @@ func (c *voucherClient) NextOrderID(ctx context.Context, in *NextOrderIDRequest,
 	return out, nil
 }
 
+func (c *voucherClient) Seckill(ctx context.Context, in *SeckillRequest, opts ...grpc.CallOption) (*SeckillResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(SeckillResponse)
+	err := c.cc.Invoke(ctx, Voucher_Seckill_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
 // VoucherServer is the server API for Voucher service.
 // All implementations must embed UnimplementedVoucherServer
 // for forward compatibility.
@@ -108,6 +122,9 @@ type VoucherServer interface {
 	// NextOrderID is called by the gateway before the seckill admission, so the
 	// 202 can carry an order id that no row exists for yet.
 	NextOrderID(context.Context, *NextOrderIDRequest) (*NextOrderIDResponse, error)
+	// Seckill is the admission. It returns an order id for an ADMITTED caller and
+	// a reason code for everyone else -- no order row exists yet either way.
+	Seckill(context.Context, *SeckillRequest) (*SeckillResponse, error)
 	mustEmbedUnimplementedVoucherServer()
 }
 
@@ -132,6 +149,9 @@ func (UnimplementedVoucherServer) CreateSeckillVoucher(context.Context, *CreateS
 }
 func (UnimplementedVoucherServer) NextOrderID(context.Context, *NextOrderIDRequest) (*NextOrderIDResponse, error) {
 	return nil, status.Error(codes.Unimplemented, "method NextOrderID not implemented")
+}
+func (UnimplementedVoucherServer) Seckill(context.Context, *SeckillRequest) (*SeckillResponse, error) {
+	return nil, status.Error(codes.Unimplemented, "method Seckill not implemented")
 }
 func (UnimplementedVoucherServer) mustEmbedUnimplementedVoucherServer() {}
 func (UnimplementedVoucherServer) testEmbeddedByValue()                 {}
@@ -244,6 +264,24 @@ func _Voucher_NextOrderID_Handler(srv interface{}, ctx context.Context, dec func
 	return interceptor(ctx, in, info, handler)
 }
 
+func _Voucher_Seckill_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(SeckillRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(VoucherServer).Seckill(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: Voucher_Seckill_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(VoucherServer).Seckill(ctx, req.(*SeckillRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
 // Voucher_ServiceDesc is the grpc.ServiceDesc for Voucher service.
 // It's only intended for direct use with grpc.RegisterService,
 // and not to be introspected or modified (even as a copy)
@@ -270,6 +308,10 @@ var Voucher_ServiceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "NextOrderID",
 			Handler:    _Voucher_NextOrderID_Handler,
+		},
+		{
+			MethodName: "Seckill",
+			Handler:    _Voucher_Seckill_Handler,
 		},
 	},
 	Streams:  []grpc.StreamDesc{},

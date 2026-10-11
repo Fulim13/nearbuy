@@ -6,9 +6,11 @@ import (
 	"net"
 	"os"
 	"os/signal"
+	"strings"
 	"syscall"
 
 	"github.com/Fulim13/nearbuy/pkg/grpx"
+	"github.com/Fulim13/nearbuy/pkg/kafkax"
 	"github.com/Fulim13/nearbuy/pkg/util"
 	"github.com/Fulim13/nearbuy/services/voucher-service/internal/handler"
 	"github.com/Fulim13/nearbuy/services/voucher-service/internal/service"
@@ -47,7 +49,13 @@ func main() {
 		os.Exit(1)
 	}
 
-	svc := service.NewVoucherService(pool, rdb)
+	// voucher-service is now a Kafka PRODUCER. It does not consume, so there is
+	// no reader and no consumer group here.
+	brokers := strings.Split(util.Env("KAFKA_BROKERS", "localhost:9092"), ",")
+	producer := kafkax.NewProducer(brokers)
+	defer producer.Close()
+
+	svc := service.NewVoucherService(pool, rdb, producer)
 
 	// Warm the seckill counters from Postgres before accepting traffic. A Redis
 	// restart would otherwise leave every running seckill with no stock key, and

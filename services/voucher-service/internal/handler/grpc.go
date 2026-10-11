@@ -7,7 +7,9 @@ import (
 	"time"
 
 	"github.com/Fulim13/nearbuy/gen/golang/v1/voucher"
+	"github.com/Fulim13/nearbuy/pkg/kafkax"
 	"github.com/Fulim13/nearbuy/services/voucher-service/internal/repository"
+	"github.com/Fulim13/nearbuy/services/voucher-service/internal/seckill"
 	"github.com/Fulim13/nearbuy/services/voucher-service/internal/service"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
@@ -167,4 +169,54 @@ func rfc3339(t *time.Time) *string {
 	}
 	s := t.UTC().Format(time.RFC3339)
 	return &s
+}
+
+// ---------------------------------------------------------------- seckill
+
+// codeToPB maps the Lua return value onto a wire enum, so the gateway chooses an
+// HTTP status from a typed constant rather than by matching a message string.
+var codeToPB = map[seckill.Code]voucher.SeckillCode{
+	seckill.Admitted:       voucher.SeckillCode_SECKILL_CODE_ADMITTED,
+	seckill.OutOfStock:     voucher.SeckillCode_SECKILL_CODE_OUT_OF_STOCK,
+	seckill.AlreadyOrdered: voucher.SeckillCode_SECKILL_CODE_ALREADY_ORDERED,
+	seckill.NotStarted:     voucher.SeckillCode_SECKILL_CODE_NOT_STARTED,
+	seckill.Finished:       voucher.SeckillCode_SECKILL_CODE_FINISHED,
+	seckill.UnknownVoucher: voucher.SeckillCode_SECKILL_CODE_UNKNOWN_VOUCHER,
+}
+
+func (h *GRPCHandler) Seckill(ctx context.Context, in *voucher.SeckillRequest) (*voucher.SeckillResponse, error) {
+	if in.GetVoucherId() <= 0 {
+		return nil, status.Error(codes.InvalidArgument, "voucher_id must be positive")
+	}
+	// The user id arrives as a REQUEST FIELD rather than from
+	// grpcx.UserIDFromContext, because the gateway is the only caller and it has
+	// already authenticated. Reading it from metadata here would work too; taking
+	// it explicitly keeps the RPC testable with grpcurl, which the loadtest needs.
+	if in.GetUserId() <= 0 {
+		return nil, status.Error(codes.InvalidArgument, "user_id must be positive")
+	}
+
+	orderID, code, err := h.service.Seckill(ctx, in.GetVoucherId(), in.GetUserId(),
+		kafkax.Header2TraceID(ctx))
+	if errors.Is(err, service.ErrVoucherNotFound) {
+		return &voucher.SeckillResponse{
+			Reason: seckill.UnknownVoucher.String(),
+			Code:   voucher.SeckillCode_SECKILL_CODE_UNKNOWN_VOUCHER,
+		}, nil
+	}
+	if err != nil {
+		slog.Error("seckill", "voucher_id", in.GetVoucherId(), "user_id", in.GetUserId(), "error", err)
+		return nil, status.Error(codes.Internal, "internal error")
+	}
+
+	// A rejection is a SUCCESSFUL rpc with admitted=false, not a gRPC error.
+	// "out of stock" is the expected outcome for most callers in a flash sale;
+	if code != seckill.Admitted {
+		return &voucher.SeckillResponse{Reason: code.String(), Code: codeToPB[code]}, nil
+	}
+	return &voucher.SeckillResponse{
+		Admitted: true,
+		OrderId:  orderID,
+		Code:     voucher.SeckillCode_SECKILL_CODE_ADMITTED,
+	}, nil
 }

@@ -6,6 +6,7 @@ import (
 
 	"github.com/Fulim13/nearbuy/gen/golang/v1/voucher"
 	"github.com/Fulim13/nearbuy/services/api-gateway/internal/client"
+	mw "github.com/Fulim13/nearbuy/services/api-gateway/internal/middleware"
 	"github.com/labstack/echo/v5"
 )
 
@@ -126,4 +127,64 @@ func (h *VoucherHandler) createSeckillVoucher(c *echo.Context) error {
 		return grpcError(err)
 	}
 	return c.JSON(http.StatusCreated, voucherOut(resp.GetVoucher()))
+}
+
+// seckillResponse is what a caller gets from POST /api/voucher-order/seckill/:id.
+//
+// 202 Accepted, not 201 Created: no order row exists yet. The id is a PROMISE
+// that one will, redeemable by polling GET /api/voucher-order/:id once
+// order-service exists.
+type seckillResponse struct {
+	OrderID int64  `json:"order_id"`
+	Status  string `json:"status"`
+}
+
+// seckillStatus maps the admission code onto an HTTP status.
+//
+// All the rejections are 4xx, and which 4xx matters:
+//   - out of stock  -> 409 Conflict: the request was fine, the world changed
+//   - already yours -> 409 Conflict: same, and idempotent-ish from the client's view
+//   - not started   -> 425 Too Early, the status literally meant for this
+//   - finished      -> 410 Gone, the resource existed and no longer does
+//   - unknown       -> 404
+//
+// None of them is a 500. A sold-out seckill is the system working.
+var seckillStatus = map[voucher.SeckillCode]int{
+	voucher.SeckillCode_SECKILL_CODE_OUT_OF_STOCK:    http.StatusConflict,
+	voucher.SeckillCode_SECKILL_CODE_ALREADY_ORDERED: http.StatusConflict,
+	voucher.SeckillCode_SECKILL_CODE_NOT_STARTED:     http.StatusTooEarly,
+	voucher.SeckillCode_SECKILL_CODE_FINISHED:        http.StatusGone,
+	voucher.SeckillCode_SECKILL_CODE_UNKNOWN_VOUCHER: http.StatusNotFound,
+}
+
+func (h *VoucherHandler) seckill(c *echo.Context) error {
+	voucherID, err := strconv.ParseInt(c.Param("id"), 10, 64)
+	if err != nil || voucherID <= 0 {
+		return echo.NewHTTPError(http.StatusBadRequest, "invalid voucher id")
+	}
+	u, ok := mw.SessionUser(c)
+	if !ok {
+		return echo.NewHTTPError(http.StatusUnauthorized, "authentication required")
+	}
+
+	resp, err := h.voucher.Seckill(c.Request().Context(), &voucher.SeckillRequest{
+		VoucherId: voucherID,
+		UserId:    u.ID,
+	})
+	if err != nil {
+		return grpcError(err)
+	}
+
+	if !resp.GetAdmitted() {
+		code, ok := seckillStatus[resp.GetCode()]
+		if !ok {
+			code = http.StatusConflict
+		}
+		return echo.NewHTTPError(code, resp.GetReason())
+	}
+
+	return c.JSON(http.StatusAccepted, seckillResponse{
+		OrderID: resp.GetOrderId(),
+		Status:  "pending",
+	})
 }

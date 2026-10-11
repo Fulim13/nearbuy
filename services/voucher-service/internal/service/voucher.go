@@ -2,6 +2,7 @@ package service
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"log/slog"
@@ -9,7 +10,9 @@ import (
 	"time"
 
 	"github.com/Fulim13/nearbuy/pkg/idgen"
+	"github.com/Fulim13/nearbuy/pkg/kafkax"
 	"github.com/Fulim13/nearbuy/services/voucher-service/internal/repository"
+	"github.com/Fulim13/nearbuy/services/voucher-service/internal/seckill"
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/redis/go-redis/v9"
@@ -29,19 +32,32 @@ var (
 )
 
 type VoucherService struct {
-	pool *pgxpool.Pool
-	repo *repository.Queries
-	rdb  *redis.Client
-	ids  *idgen.Generator
+	pool     *pgxpool.Pool
+	repo     *repository.Queries
+	rdb      *redis.Client
+	ids      *idgen.Generator
+	admitter *seckill.Admitter
+	producer *kafkax.Producer
 }
 
-func NewVoucherService(pool *pgxpool.Pool, rdb *redis.Client) *VoucherService {
-	return &VoucherService{
-		pool: pool,
-		repo: repository.New(pool),
-		rdb:  rdb,
-		ids:  idgen.New(rdb),
+func NewVoucherService(pool *pgxpool.Pool, rdb *redis.Client, producer *kafkax.Producer) *VoucherService {
+	s := &VoucherService{
+		pool:     pool,
+		repo:     repository.New(pool),
+		rdb:      rdb,
+		ids:      idgen.New(rdb),
+		producer: producer,
 	}
+	// The window loader reads the authoritative row. Injected as a closure so
+	// pkg seckill never imports the repository.
+	s.admitter = seckill.NewAdmitter(rdb, func(ctx context.Context, voucherID int64) (seckill.Window, error) {
+		row, err := s.repo.GetSeckillStock(ctx, voucherID)
+		if err != nil {
+			return seckill.Window{}, ErrVoucherNotFound
+		}
+		return seckill.Window{Begin: row.BeginTime, End: row.EndTime}, nil
+	})
+	return s
 }
 
 func (s *VoucherService) withTx(ctx context.Context, fn func(q *repository.Queries) error) error {
@@ -105,6 +121,7 @@ func (s *VoucherService) CreateSeckillVoucher(
 		// CLOSED, the safe direction for a seckill.
 		slog.Warn("could not warm seckill stock", "voucher_id", created.ID, "error", err)
 	}
+	s.admitter.Remember(created.ID, seckill.Window{Begin: beginTime, End: endTime})
 	return created, nil
 }
 
@@ -205,4 +222,96 @@ func (s *VoucherService) RestoreStock(ctx context.Context, voucherID int64, qty 
 		return ErrNotSeckill
 	}
 	return nil
+}
+
+// SeckillAdmitted is the event the admission publishes. It carries everything the
+// consumer needs to build the order, because that consumer lives in another
+// service with another database and cannot look any of it up.
+type SeckillAdmitted struct {
+	OrderID   int64 `json:"order_id"`
+	UserID    int64 `json:"user_id"`
+	VoucherID int64 `json:"voucher_id"`
+	ShopID    int64 `json:"shop_id"`
+	PayValue  int64 `json:"pay_value"`
+}
+
+// Seckill is the hot path.
+//
+// Order of operations, and every one of them matters:
+//
+//  1. mint the order id   -- the client gets this in the 202, before any row
+//     exists, which is why it cannot be an IDENTITY
+//  2. run the Lua         -- window + stock + duplicate + both writes, atomic
+//  3. publish to Kafka    -- the ONLY durable record so far
+//  4. on publish failure, RELEASE the admission
+//
+// Steps 2 and 3 are not atomic and cannot be: Redis and Kafka share no
+// transaction, and there is no database row to hang an outbox off
+// Step 4 narrows the window;
+// sweeper closes what is left.
+func (s *VoucherService) Seckill(ctx context.Context, voucherID, userID int64, traceID string) (int64, seckill.Code, error) {
+	code, err := s.admitter.Admit(ctx, voucherID, userID)
+	if err != nil {
+		return 0, code, err
+	}
+	if code != seckill.Admitted {
+		// Rejections are the common case -- 9,900 of 10,000 -- and they cost one
+		// Redis round trip and nothing else. No id is minted, no event published.
+		return 0, code, nil
+	}
+
+	// Only now is an id worth spending.
+	orderID, err := s.ids.NextID(ctx, "order")
+	if err != nil {
+		s.releaseQuietly(ctx, voucherID, userID, "id generation failed")
+		return 0, code, err
+	}
+
+	v, err := s.repo.GetVoucher(ctx, voucherID)
+	if err != nil {
+		s.releaseQuietly(ctx, voucherID, userID, "voucher lookup failed")
+		return 0, code, err
+	}
+
+	payload, err := json.Marshal(SeckillAdmitted{
+		OrderID:   orderID,
+		UserID:    userID,
+		VoucherID: voucherID,
+		ShopID:    v.ShopID,
+		PayValue:  v.PayValue,
+	})
+	if err != nil {
+		s.releaseQuietly(ctx, voucherID, userID, "marshal failed")
+		return 0, code, err
+	}
+
+	// Keyed by ORDER id, not voucher id. A seckill is by definition a stampede on
+	// one voucher, so keying by voucher_id would put 100% of the traffic on one
+	// partition and cap the consumer at one goroutine. Per-voucher ordering is not
+	// needed: the Lua already enforced one-per-user and the stock decision is made.
+	if err := s.producer.Publish(ctx, kafkax.TopicSeckillAdmitted,
+		strconv.FormatInt(orderID, 10), payload, traceID); err != nil {
+		s.releaseQuietly(ctx, voucherID, userID, "publish failed")
+		return 0, code, fmt.Errorf("publish seckill.admitted: %w", err)
+	}
+
+	slog.Info("seckill admitted", "order_id", orderID, "voucher_id", voucherID,
+		"user_id", userID, "trace_id", traceID)
+	return orderID, seckill.Admitted, nil
+}
+
+// releaseQuietly gives the stock back. It logs at Error rather than returning the
+// release failure, because the caller already has a more useful error -- and a
+// failed release is exactly what the sweeper exists for.
+func (s *VoucherService) releaseQuietly(ctx context.Context, voucherID, userID int64, why string) {
+	// A fresh context: the request's may already be cancelled, and giving the
+	// stock back matters more than honouring its deadline.
+	relCtx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
+	defer cancel()
+	if err := s.admitter.Release(relCtx, voucherID, userID); err != nil {
+		slog.Error("STOCK LEAKED - release failed after admission",
+			"voucher_id", voucherID, "user_id", userID, "why", why, "error", err)
+		return
+	}
+	slog.Warn("admission released", "voucher_id", voucherID, "user_id", userID, "why", why)
 }

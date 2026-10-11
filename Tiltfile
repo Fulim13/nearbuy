@@ -189,6 +189,6 @@ k8s_yaml([                                                   # Apply the voucher
 ])
 k8s_resource(
     'voucher-service',                                       # Tilt resource for the voucher-service Deployment
-    resource_deps=['postgres', 'redis', 'migrate-voucher'],  # Wait for Postgres, Redis + its migrations before starting
+    resource_deps=['postgres', 'redis', 'kafka-topics', 'migrate-voucher'],  # Wait for Postgres, Redis + its migrations before starting
     labels=['services'],                                     # Group under "services"
 )

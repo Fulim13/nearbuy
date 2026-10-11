@@ -21,6 +21,67 @@ const (
 	_ = protoimpl.EnforceVersion(protoimpl.MaxVersion - 20)
 )
 
+type SeckillCode int32
+
+const (
+	SeckillCode_SECKILL_CODE_UNSPECIFIED     SeckillCode = 0
+	SeckillCode_SECKILL_CODE_ADMITTED        SeckillCode = 1
+	SeckillCode_SECKILL_CODE_OUT_OF_STOCK    SeckillCode = 2
+	SeckillCode_SECKILL_CODE_ALREADY_ORDERED SeckillCode = 3
+	SeckillCode_SECKILL_CODE_NOT_STARTED     SeckillCode = 4
+	SeckillCode_SECKILL_CODE_FINISHED        SeckillCode = 5
+	SeckillCode_SECKILL_CODE_UNKNOWN_VOUCHER SeckillCode = 6
+)
+
+// Enum value maps for SeckillCode.
+var (
+	SeckillCode_name = map[int32]string{
+		0: "SECKILL_CODE_UNSPECIFIED",
+		1: "SECKILL_CODE_ADMITTED",
+		2: "SECKILL_CODE_OUT_OF_STOCK",
+		3: "SECKILL_CODE_ALREADY_ORDERED",
+		4: "SECKILL_CODE_NOT_STARTED",
+		5: "SECKILL_CODE_FINISHED",
+		6: "SECKILL_CODE_UNKNOWN_VOUCHER",
+	}
+	SeckillCode_value = map[string]int32{
+		"SECKILL_CODE_UNSPECIFIED":     0,
+		"SECKILL_CODE_ADMITTED":        1,
+		"SECKILL_CODE_OUT_OF_STOCK":    2,
+		"SECKILL_CODE_ALREADY_ORDERED": 3,
+		"SECKILL_CODE_NOT_STARTED":     4,
+		"SECKILL_CODE_FINISHED":        5,
+		"SECKILL_CODE_UNKNOWN_VOUCHER": 6,
+	}
+)
+
+func (x SeckillCode) Enum() *SeckillCode {
+	p := new(SeckillCode)
+	*p = x
+	return p
+}
+
+func (x SeckillCode) String() string {
+	return protoimpl.X.EnumStringOf(x.Descriptor(), protoreflect.EnumNumber(x))
+}
+
+func (SeckillCode) Descriptor() protoreflect.EnumDescriptor {
+	return file_voucher_proto_enumTypes[0].Descriptor()
+}
+
+func (SeckillCode) Type() protoreflect.EnumType {
+	return &file_voucher_proto_enumTypes[0]
+}
+
+func (x SeckillCode) Number() protoreflect.EnumNumber {
+	return protoreflect.EnumNumber(x)
+}
+
+// Deprecated: Use SeckillCode.Descriptor instead.
+func (SeckillCode) EnumDescriptor() ([]byte, []int) {
+	return file_voucher_proto_rawDescGZIP(), []int{0}
+}
+
 // VoucherInfo, not Voucher: a message cannot share its name with the service in
 // the same proto package.
 type VoucherInfo struct {
@@ -609,6 +670,128 @@ func (x *NextOrderIDResponse) GetOrderId() int64 {
 	return 0
 }
 
+type SeckillRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	VoucherId     int64                  `protobuf:"varint,1,opt,name=voucher_id,json=voucherId,proto3" json:"voucher_id,omitempty"`
+	UserId        int64                  `protobuf:"varint,2,opt,name=user_id,json=userId,proto3" json:"user_id,omitempty"` // the actor, from x-user-id
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *SeckillRequest) Reset() {
+	*x = SeckillRequest{}
+	mi := &file_voucher_proto_msgTypes[10]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *SeckillRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*SeckillRequest) ProtoMessage() {}
+
+func (x *SeckillRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_voucher_proto_msgTypes[10]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use SeckillRequest.ProtoReflect.Descriptor instead.
+func (*SeckillRequest) Descriptor() ([]byte, []int) {
+	return file_voucher_proto_rawDescGZIP(), []int{10}
+}
+
+func (x *SeckillRequest) GetVoucherId() int64 {
+	if x != nil {
+		return x.VoucherId
+	}
+	return 0
+}
+
+func (x *SeckillRequest) GetUserId() int64 {
+	if x != nil {
+		return x.UserId
+	}
+	return 0
+}
+
+type SeckillResponse struct {
+	state    protoimpl.MessageState `protogen:"open.v1"`
+	Admitted bool                   `protobuf:"varint,1,opt,name=admitted,proto3" json:"admitted,omitempty"`
+	OrderId  int64                  `protobuf:"varint,2,opt,name=order_id,json=orderId,proto3" json:"order_id,omitempty"` // 0 unless admitted
+	Reason   string                 `protobuf:"bytes,3,opt,name=reason,proto3" json:"reason,omitempty"`                   // human-readable rejection, empty when admitted
+	// The machine-readable code, so the gateway can pick an HTTP status without
+	// string-matching the reason.
+	Code          SeckillCode `protobuf:"varint,4,opt,name=code,proto3,enum=voucher.v1.SeckillCode" json:"code,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *SeckillResponse) Reset() {
+	*x = SeckillResponse{}
+	mi := &file_voucher_proto_msgTypes[11]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *SeckillResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*SeckillResponse) ProtoMessage() {}
+
+func (x *SeckillResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_voucher_proto_msgTypes[11]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use SeckillResponse.ProtoReflect.Descriptor instead.
+func (*SeckillResponse) Descriptor() ([]byte, []int) {
+	return file_voucher_proto_rawDescGZIP(), []int{11}
+}
+
+func (x *SeckillResponse) GetAdmitted() bool {
+	if x != nil {
+		return x.Admitted
+	}
+	return false
+}
+
+func (x *SeckillResponse) GetOrderId() int64 {
+	if x != nil {
+		return x.OrderId
+	}
+	return 0
+}
+
+func (x *SeckillResponse) GetReason() string {
+	if x != nil {
+		return x.Reason
+	}
+	return ""
+}
+
+func (x *SeckillResponse) GetCode() SeckillCode {
+	if x != nil {
+		return x.Code
+	}
+	return SeckillCode_SECKILL_CODE_UNSPECIFIED
+}
+
 var File_voucher_proto protoreflect.FileDescriptor
 
 const file_voucher_proto_rawDesc = "" +
@@ -658,14 +841,32 @@ const file_voucher_proto_rawDesc = "" +
 	"\bend_time\x18\x04 \x01(\tR\aendTime\"\x14\n" +
 	"\x12NextOrderIDRequest\"0\n" +
 	"\x13NextOrderIDResponse\x12\x19\n" +
-	"\border_id\x18\x01 \x01(\x03R\aorderId2\xc5\x03\n" +
+	"\border_id\x18\x01 \x01(\x03R\aorderId\"H\n" +
+	"\x0eSeckillRequest\x12\x1d\n" +
+	"\n" +
+	"voucher_id\x18\x01 \x01(\x03R\tvoucherId\x12\x17\n" +
+	"\auser_id\x18\x02 \x01(\x03R\x06userId\"\x8d\x01\n" +
+	"\x0fSeckillResponse\x12\x1a\n" +
+	"\badmitted\x18\x01 \x01(\bR\badmitted\x12\x19\n" +
+	"\border_id\x18\x02 \x01(\x03R\aorderId\x12\x16\n" +
+	"\x06reason\x18\x03 \x01(\tR\x06reason\x12+\n" +
+	"\x04code\x18\x04 \x01(\x0e2\x17.voucher.v1.SeckillCodeR\x04code*\xe2\x01\n" +
+	"\vSeckillCode\x12\x1c\n" +
+	"\x18SECKILL_CODE_UNSPECIFIED\x10\x00\x12\x19\n" +
+	"\x15SECKILL_CODE_ADMITTED\x10\x01\x12\x1d\n" +
+	"\x19SECKILL_CODE_OUT_OF_STOCK\x10\x02\x12 \n" +
+	"\x1cSECKILL_CODE_ALREADY_ORDERED\x10\x03\x12\x1c\n" +
+	"\x18SECKILL_CODE_NOT_STARTED\x10\x04\x12\x19\n" +
+	"\x15SECKILL_CODE_FINISHED\x10\x05\x12 \n" +
+	"\x1cSECKILL_CODE_UNKNOWN_VOUCHER\x10\x062\x89\x04\n" +
 	"\aVoucher\x12K\n" +
 	"\n" +
 	"GetVoucher\x12\x1d.voucher.v1.GetVoucherRequest\x1a\x1e.voucher.v1.GetVoucherResponse\x12c\n" +
 	"\x12ListVouchersByShop\x12%.voucher.v1.ListVouchersByShopRequest\x1a&.voucher.v1.ListVouchersByShopResponse\x12T\n" +
 	"\rCreateVoucher\x12 .voucher.v1.CreateVoucherRequest\x1a!.voucher.v1.CreateVoucherResponse\x12b\n" +
 	"\x14CreateSeckillVoucher\x12'.voucher.v1.CreateSeckillVoucherRequest\x1a!.voucher.v1.CreateVoucherResponse\x12N\n" +
-	"\vNextOrderID\x12\x1e.voucher.v1.NextOrderIDRequest\x1a\x1f.voucher.v1.NextOrderIDResponseB:Z8github.com/Fulim13/nearbuy/gen/golang/v1/voucher;voucherb\x06proto3"
+	"\vNextOrderID\x12\x1e.voucher.v1.NextOrderIDRequest\x1a\x1f.voucher.v1.NextOrderIDResponse\x12B\n" +
+	"\aSeckill\x12\x1a.voucher.v1.SeckillRequest\x1a\x1b.voucher.v1.SeckillResponseB:Z8github.com/Fulim13/nearbuy/gen/golang/v1/voucher;voucherb\x06proto3"
 
 var (
 	file_voucher_proto_rawDescOnce sync.Once
@@ -679,39 +880,46 @@ func file_voucher_proto_rawDescGZIP() []byte {
 	return file_voucher_proto_rawDescData
 }
 
-var file_voucher_proto_msgTypes = make([]protoimpl.MessageInfo, 10)
+var file_voucher_proto_enumTypes = make([]protoimpl.EnumInfo, 1)
+var file_voucher_proto_msgTypes = make([]protoimpl.MessageInfo, 12)
 var file_voucher_proto_goTypes = []any{
-	(*VoucherInfo)(nil),                 // 0: voucher.v1.VoucherInfo
-	(*GetVoucherRequest)(nil),           // 1: voucher.v1.GetVoucherRequest
-	(*GetVoucherResponse)(nil),          // 2: voucher.v1.GetVoucherResponse
-	(*ListVouchersByShopRequest)(nil),   // 3: voucher.v1.ListVouchersByShopRequest
-	(*ListVouchersByShopResponse)(nil),  // 4: voucher.v1.ListVouchersByShopResponse
-	(*CreateVoucherRequest)(nil),        // 5: voucher.v1.CreateVoucherRequest
-	(*CreateVoucherResponse)(nil),       // 6: voucher.v1.CreateVoucherResponse
-	(*CreateSeckillVoucherRequest)(nil), // 7: voucher.v1.CreateSeckillVoucherRequest
-	(*NextOrderIDRequest)(nil),          // 8: voucher.v1.NextOrderIDRequest
-	(*NextOrderIDResponse)(nil),         // 9: voucher.v1.NextOrderIDResponse
+	(SeckillCode)(0),                    // 0: voucher.v1.SeckillCode
+	(*VoucherInfo)(nil),                 // 1: voucher.v1.VoucherInfo
+	(*GetVoucherRequest)(nil),           // 2: voucher.v1.GetVoucherRequest
+	(*GetVoucherResponse)(nil),          // 3: voucher.v1.GetVoucherResponse
+	(*ListVouchersByShopRequest)(nil),   // 4: voucher.v1.ListVouchersByShopRequest
+	(*ListVouchersByShopResponse)(nil),  // 5: voucher.v1.ListVouchersByShopResponse
+	(*CreateVoucherRequest)(nil),        // 6: voucher.v1.CreateVoucherRequest
+	(*CreateVoucherResponse)(nil),       // 7: voucher.v1.CreateVoucherResponse
+	(*CreateSeckillVoucherRequest)(nil), // 8: voucher.v1.CreateSeckillVoucherRequest
+	(*NextOrderIDRequest)(nil),          // 9: voucher.v1.NextOrderIDRequest
+	(*NextOrderIDResponse)(nil),         // 10: voucher.v1.NextOrderIDResponse
+	(*SeckillRequest)(nil),              // 11: voucher.v1.SeckillRequest
+	(*SeckillResponse)(nil),             // 12: voucher.v1.SeckillResponse
 }
 var file_voucher_proto_depIdxs = []int32{
-	0, // 0: voucher.v1.GetVoucherResponse.voucher:type_name -> voucher.v1.VoucherInfo
-	0, // 1: voucher.v1.ListVouchersByShopResponse.vouchers:type_name -> voucher.v1.VoucherInfo
-	0, // 2: voucher.v1.CreateVoucherResponse.voucher:type_name -> voucher.v1.VoucherInfo
-	5, // 3: voucher.v1.CreateSeckillVoucherRequest.voucher:type_name -> voucher.v1.CreateVoucherRequest
-	1, // 4: voucher.v1.Voucher.GetVoucher:input_type -> voucher.v1.GetVoucherRequest
-	3, // 5: voucher.v1.Voucher.ListVouchersByShop:input_type -> voucher.v1.ListVouchersByShopRequest
-	5, // 6: voucher.v1.Voucher.CreateVoucher:input_type -> voucher.v1.CreateVoucherRequest
-	7, // 7: voucher.v1.Voucher.CreateSeckillVoucher:input_type -> voucher.v1.CreateSeckillVoucherRequest
-	8, // 8: voucher.v1.Voucher.NextOrderID:input_type -> voucher.v1.NextOrderIDRequest
-	2, // 9: voucher.v1.Voucher.GetVoucher:output_type -> voucher.v1.GetVoucherResponse
-	4, // 10: voucher.v1.Voucher.ListVouchersByShop:output_type -> voucher.v1.ListVouchersByShopResponse
-	6, // 11: voucher.v1.Voucher.CreateVoucher:output_type -> voucher.v1.CreateVoucherResponse
-	6, // 12: voucher.v1.Voucher.CreateSeckillVoucher:output_type -> voucher.v1.CreateVoucherResponse
-	9, // 13: voucher.v1.Voucher.NextOrderID:output_type -> voucher.v1.NextOrderIDResponse
-	9, // [9:14] is the sub-list for method output_type
-	4, // [4:9] is the sub-list for method input_type
-	4, // [4:4] is the sub-list for extension type_name
-	4, // [4:4] is the sub-list for extension extendee
-	0, // [0:4] is the sub-list for field type_name
+	1,  // 0: voucher.v1.GetVoucherResponse.voucher:type_name -> voucher.v1.VoucherInfo
+	1,  // 1: voucher.v1.ListVouchersByShopResponse.vouchers:type_name -> voucher.v1.VoucherInfo
+	1,  // 2: voucher.v1.CreateVoucherResponse.voucher:type_name -> voucher.v1.VoucherInfo
+	6,  // 3: voucher.v1.CreateSeckillVoucherRequest.voucher:type_name -> voucher.v1.CreateVoucherRequest
+	0,  // 4: voucher.v1.SeckillResponse.code:type_name -> voucher.v1.SeckillCode
+	2,  // 5: voucher.v1.Voucher.GetVoucher:input_type -> voucher.v1.GetVoucherRequest
+	4,  // 6: voucher.v1.Voucher.ListVouchersByShop:input_type -> voucher.v1.ListVouchersByShopRequest
+	6,  // 7: voucher.v1.Voucher.CreateVoucher:input_type -> voucher.v1.CreateVoucherRequest
+	8,  // 8: voucher.v1.Voucher.CreateSeckillVoucher:input_type -> voucher.v1.CreateSeckillVoucherRequest
+	9,  // 9: voucher.v1.Voucher.NextOrderID:input_type -> voucher.v1.NextOrderIDRequest
+	11, // 10: voucher.v1.Voucher.Seckill:input_type -> voucher.v1.SeckillRequest
+	3,  // 11: voucher.v1.Voucher.GetVoucher:output_type -> voucher.v1.GetVoucherResponse
+	5,  // 12: voucher.v1.Voucher.ListVouchersByShop:output_type -> voucher.v1.ListVouchersByShopResponse
+	7,  // 13: voucher.v1.Voucher.CreateVoucher:output_type -> voucher.v1.CreateVoucherResponse
+	7,  // 14: voucher.v1.Voucher.CreateSeckillVoucher:output_type -> voucher.v1.CreateVoucherResponse
+	10, // 15: voucher.v1.Voucher.NextOrderID:output_type -> voucher.v1.NextOrderIDResponse
+	12, // 16: voucher.v1.Voucher.Seckill:output_type -> voucher.v1.SeckillResponse
+	11, // [11:17] is the sub-list for method output_type
+	5,  // [5:11] is the sub-list for method input_type
+	5,  // [5:5] is the sub-list for extension type_name
+	5,  // [5:5] is the sub-list for extension extendee
+	0,  // [0:5] is the sub-list for field type_name
 }
 
 func init() { file_voucher_proto_init() }
@@ -725,13 +933,14 @@ func file_voucher_proto_init() {
 		File: protoimpl.DescBuilder{
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_voucher_proto_rawDesc), len(file_voucher_proto_rawDesc)),
-			NumEnums:      0,
-			NumMessages:   10,
+			NumEnums:      1,
+			NumMessages:   12,
 			NumExtensions: 0,
 			NumServices:   1,
 		},
 		GoTypes:           file_voucher_proto_goTypes,
 		DependencyIndexes: file_voucher_proto_depIdxs,
+		EnumInfos:         file_voucher_proto_enumTypes,
 		MessageInfos:      file_voucher_proto_msgTypes,
 	}.Build()
 	File_voucher_proto = out.File
