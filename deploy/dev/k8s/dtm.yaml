@@ -1,0 +1,75 @@
+apiVersion: v1                      # Core API group
+kind: Service                       # Stable DNS name + virtual IP for DTM pods
+metadata:                           # Object identity
+  name: dtm                         # Clients reach it at dtm:36789
+spec:                               # Service config; defaults to ClusterIP (internal only)
+  ports:                            # Ports this Service exposes
+    - name: http                    # Port label; required when there are multiple ports
+      port: 36789                   # Port clients hit on the Service
+      targetPort: 36789             # Port forwarded to on the pod
+    - name: grpc                    # Second port label
+      port: 36790                   # Service-side gRPC port
+      targetPort: 36790             # Pod-side gRPC port
+  selector:                         # Which pods get traffic
+    app: dtm                        # Ready pods labeled app=dtm
+---                                 # Separator: next object starts
+apiVersion: apps/v1                 # Workloads API group
+kind: Deployment                    # Manages rollouts and keeps pods running
+metadata:                           # Object identity
+  name: dtm                         # Deployment name
+spec:                               # Deployment config
+  replicas: 1                       # One pod; no high availability
+  selector:                         # How it finds pods it owns
+    matchLabels:                    # Match by exact labels
+      app: dtm                      # Immutable after creation
+  template:                         # Pod blueprint; edits trigger a rollout
+    metadata:                       # Pod identity
+      labels:                       # Labels stamped on each pod
+        app: dtm                    # Must match the selector above
+    spec:                           # Pod config
+      containers:                   # Containers in the pod
+        - name: dtm                 # Container name
+          image: yedf/dtm:1.19.0    # DTM image, pinned version
+          imagePullPolicy: IfNotPresent  # Reuse cached image on the node
+          ports:                    # Declared container ports
+            - containerPort: 36789  # HTTP; informational, doesn't open anything
+            - containerPort: 36790  # gRPC; informational
+          env:                      # Env vars; override DTM's config.yml
+            - name: STORE_DRIVER    # Storage backend type
+              value: "postgres"     # Persist transaction state in Postgres
+            - name: STORE_HOST      # DB hostname
+              valueFrom:            # Value comes from another object
+                configMapKeyRef: { name: app-config, key: POSTGRES_HOST }  # From ConfigMap; missing key blocks pod start
+            - name: STORE_PORT      # DB port
+              value: "5432"         # Postgres default; must be quoted
+            - name: STORE_USER      # DB username
+              valueFrom:            # Value comes from another object
+                secretKeyRef: { name: app-secrets, key: POSTGRES_USER }  # From Secret
+            - name: STORE_PASSWORD  # DB password
+              valueFrom:            # Value comes from another object
+                secretKeyRef: { name: app-secrets, key: POSTGRES_PASSWORD }  # From Secret; read only at startup
+            - name: STORE_DB        # Database name
+              value: "dtm_db"       # Must exist with DTM tables pre-created
+            - name: STORE_SCHEMA    # Postgres schema
+              value: "public"       # Default schema
+            - name: RETRY_INTERVAL  # Retry delay for failed branches
+              value: "10"           # 10s base, doubles each retry
+            - name: TRANS_CRON_INTERVAL  # Stuck-transaction scan frequency
+              value: "3"            # Every 3s
+            - name: REQUEST_TIMEOUT # Timeout for DTM calling your services
+              value: "3"            # 3s, then treated as failed
+            - name: UPDATE_BRANCH_SYNC  # Branch status write mode
+              value: "1"            # Synchronous: consistent, slightly slower
+            - name: LOG_LEVEL       # Log verbosity
+              value: "info"         # Normal level
+          readinessProbe:           # Fail = removed from Service traffic
+            httpGet: { path: /api/ping, port: 36789 }  # Pings HTTP server; doesn't check DB
+            initialDelaySeconds: 2  # First check 2s after start
+            periodSeconds: 5        # Check every 5s
+          livenessProbe:            # Fail = container restarted
+            httpGet: { path: /api/ping, port: 36789 }  # Same ping endpoint
+            initialDelaySeconds: 10 # First check 10s after start
+            periodSeconds: 10       # Check every 10s
+          resources:                # CPU/memory settings; Burstable QoS
+            requests: { cpu: 100m, memory: 128Mi }  # Guaranteed minimum, used for scheduling
+            limits:   { cpu: 500m, memory: 512Mi }  # Max; CPU throttled, memory OOMKilled

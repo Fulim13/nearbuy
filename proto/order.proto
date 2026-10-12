@@ -1,0 +1,50 @@
+syntax = "proto3";
+
+package order.v1;
+
+option go_package = "github.com/Fulim13/nearbuy/gen/golang/v1/order;order";
+
+// Order is READ-ONLY over gRPC.
+//
+// Nothing here creates an order. The only way an order comes into existence is
+// Saga S1, and the Saga's branches are HTTP endpoints DTM calls -- not RPCs the
+// gateway may call. Exposing a CreateOrder rpc would let a caller bypass the
+// seckill admission and the stock deduction entirely.
+service Order {
+	rpc GetOrder(GetOrderRequest) returns (GetOrderResponse);
+	rpc ListOrdersByUser(ListOrdersByUserRequest) returns (ListOrdersByUserResponse);
+}
+
+// OrderInfo, not Order: a message cannot share its name with the service.
+message OrderInfo {
+	int64  id          = 1;
+	int64  user_id     = 2;
+	int64  voucher_id  = 3;
+	int64  pay_value   = 4;   // cents
+	string pay_type    = 5;   // "balance" | "card"
+	string status       = 6;  // "unpaid" | "paid" | "redeemed" | "cancelled" | ...
+	string create_time = 7;   // RFC3339
+
+	// optional, because "not paid yet" and "paid at the zero time" are different
+	// facts and GetPayTime() cannot tell them apart.
+	optional string pay_time    = 8;
+	optional string use_time    = 9;
+	optional string refund_time = 10;
+}
+
+message GetOrderRequest  {
+	int64 id = 1;
+}
+
+message GetOrderResponse {
+	OrderInfo order = 1;
+}
+
+message ListOrdersByUserRequest {
+	int64 user_id = 1;
+	int32 limit   = 2;
+	int32 offset  = 3;
+}
+message ListOrdersByUserResponse {
+	repeated OrderInfo orders = 1;
+}

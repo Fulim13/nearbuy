@@ -52,6 +52,13 @@ func main() {
 	}
 	defer voucherClient.Close()
 
+	orderClient, err := client.NewOrderClient(util.Env("ORDER_SERVICE_ADDR", "order-service:9000"))
+	if err != nil {
+		slog.Error("order client", "error", err)
+		os.Exit(1)
+	}
+	defer orderClient.Close()
+
 	limiter := ratelimit.New(rdb)
 	sessions := session.NewStore(rdb)
 
@@ -65,6 +72,7 @@ func main() {
 		handler.NewShopHandler(shopClient),
 		handler.NewFollowHandler(userClient),
 		handler.NewVoucherHandler(voucherClient),
+		handler.NewOrderHandler(orderClient),
 	)
 
 	e.GET("/api/health/deps", func(c *echo.Context) error {

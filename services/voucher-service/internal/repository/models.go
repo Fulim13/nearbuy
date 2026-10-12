@@ -95,6 +95,17 @@ func (ns NullVoucherType) Value() (driver.Value, error) {
 	return string(ns.VoucherType), nil
 }
 
+type DtmBarrierBarrier struct {
+	ID         int64     `json:"id"`
+	TransType  string    `json:"trans_type"`
+	Gid        string    `json:"gid"`
+	BranchID   string    `json:"branch_id"`
+	Op         string    `json:"op"`
+	BarrierID  string    `json:"barrier_id"`
+	Reason     string    `json:"reason"`
+	CreateTime time.Time `json:"create_time"`
+}
+
 type SeckillVoucher struct {
 	VoucherID  int64     `json:"voucher_id"`
 	Stock      int32     `json:"stock"`

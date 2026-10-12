@@ -1,6 +1,7 @@
 CLUSTER       ?= nearbuy
 INGRESS_NGINX ?= https://raw.githubusercontent.com/kubernetes/ingress-nginx/controller-v1.11.2/deploy/static/provider/kind/deploy.yaml
-SERVICES_WITH_DB = user shop voucher order
+SERVICES_WITH_DB = user shop voucher order dtm
+SQLC_SERVICES    = user shop voucher order
 MODULE := github.com/Fulim13/nearbuy
 
 
@@ -40,7 +41,7 @@ migrate-down:
 migrate-reset: migrate-down migrate-up
 
 sqlc:
-	@for s in $(SERVICES_WITH_DB); do \
+	@for s in $(SQLC_SERVICES); do \
 		if ! ls services/$$s-service/database/queries/*.sql >/dev/null 2>&1; then \
 			echo "==> sqlc $$s (no queries yet, skipping)"; continue; \
 		fi; \

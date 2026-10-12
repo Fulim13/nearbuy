@@ -55,7 +55,9 @@ spec:                                   # how to run it
             - name: KAFKA_GROUP_INITIAL_REBALANCE_DELAY_MS         # wait before assigning partitions
               value: "0"                                           # don't wait (no 3s dev hang)
             - name: KAFKA_AUTO_CREATE_TOPICS_ENABLE                # auto-make unknown topics?
-              value: "false"                                       # no, so typos fail loudly
+              value: "false"
+            - name: KAFKA_LOG_DIRS
+              value: "/var/lib/kafka/data"                                    # no, so typos fail loudly
           volumeMounts:                 # attach disks to the container
             - name: data                # the disk defined at the bottom
               mountPath: /var/lib/kafka/data  #Kafka doesn't write here unless KAFKA_LOG_DIRS says so

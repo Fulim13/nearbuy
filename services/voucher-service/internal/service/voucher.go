@@ -189,41 +189,6 @@ func (s *VoucherService) warmOne(ctx context.Context, voucherID int64, stock int
 	return s.rdb.SetNX(ctx, StockKey(voucherID), stock, 0).Err()
 }
 
-// DeductStock is Saga S1's forward action.
-//
-// It reports a constraint violation as ErrOutOfStock, which is the whole point:
-// Redis is an optimistic pre-filter, and when the two disagree Postgres wins and
-// the Saga compensates.
-func (s *VoucherService) DeductStock(ctx context.Context, voucherID int64, qty int32) error {
-	rows, err := s.repo.DeductStock(ctx, repository.DeductStockParams{
-		VoucherID: voucherID, Qty: qty,
-	})
-	if err != nil {
-		if isCheckViolation(err, "stock_not_negative") {
-			return ErrOutOfStock
-		}
-		return err
-	}
-	if rows == 0 {
-		return ErrNotSeckill
-	}
-	return nil
-}
-
-// RestoreStock is DeductStock's compensation.
-func (s *VoucherService) RestoreStock(ctx context.Context, voucherID int64, qty int32) error {
-	rows, err := s.repo.RestoreStock(ctx, repository.RestoreStockParams{
-		VoucherID: voucherID, Qty: qty,
-	})
-	if err != nil {
-		return err
-	}
-	if rows == 0 {
-		return ErrNotSeckill
-	}
-	return nil
-}
-
 // SeckillAdmitted is the event the admission publishes. It carries everything the
 // consumer needs to build the order, because that consumer lives in another
 // service with another database and cannot look any of it up.

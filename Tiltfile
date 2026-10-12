@@ -68,6 +68,14 @@ for svc in SERVICES_WITH_DB:                                # One migrate resour
         labels=['init'],                                     # Group under "init"
     )
 
+local_resource(
+    'migrate-dtm',                                           # Name referenced by the dtm resource below
+    cmd='./scripts/migrate.sh dtm up',                       # scripts/migrate.sh special-cases dtm's path
+    deps=['./deploy/dev/sql/dtm'],                           # Re-run when a dtm migration changes
+    resource_deps=['postgres'],                              # Wait for Postgres first
+    labels=['init'],                                         # Group under "init"
+)
+
 # sqlc regenerates when a query or a schema file changes. Keeping it in Tilt means
 # you never debug a stale internal/repository.
 local_resource(
@@ -190,5 +198,52 @@ k8s_yaml([                                                   # Apply the voucher
 k8s_resource(
     'voucher-service',                                       # Tilt resource for the voucher-service Deployment
     resource_deps=['postgres', 'redis', 'kafka-topics', 'migrate-voucher'],  # Wait for Postgres, Redis + its migrations before starting
+    labels=['services'],                                     # Group under "services"
+)
+
+# ---------- Order Service ----------
+docker_build_with_restart(                                   # Build the image; restart the binary on live updates
+    'nearbuy/order-service',                                 # Image name: must match the Deployment's image:
+    '.',                                                     # Build context = repo root
+    dockerfile='./services/order-service/Dockerfile',        # Which Dockerfile to use
+    entrypoint=['/app/build/server'],                        # Command re-run after each live update
+    only=[                                                   # Only these paths trigger rebuilds (others are ignored)
+        './go.mod',                                          # Go module deps
+        './go.sum',                                          # Go dep checksums
+        './gen',                                             # Generated code
+        './pkg',                                             # Shared packages
+        './services/order-service',                          # This service's own code
+    ],
+    live_update=[                                            # Fast in-place updates instead of full rebuilds:
+        fall_back_on(['./go.mod', './go.sum']),              # Deps changed? Do a full image rebuild instead
+        sync('./services/order-service', '/app/services/order-service'),  # Copy service code into the running container
+        sync('./gen', '/app/gen'),                           # Copy generated code into the container
+        sync('./pkg', '/app/pkg'),                           # Copy shared pkg code into the container
+        run('go build -o /app/build/server ./services/order-service/cmd/server',  # Recompile the binary inside the container
+            trigger=['./services/order-service', './gen', './pkg']),  # ...only when these folders change
+    ],
+)
+
+# ---------- DTM ----------
+# DTM is a third-party image: no docker_build, nothing to live_update.
+k8s_yaml('./deploy/dev/k8s/dtm.yaml')                        # Apply the DTM Deployment + Service
+k8s_resource(
+    'dtm',                                                   # Tilt resource for the DTM workload
+    # migrate-dtm, not just postgres: DTM crash-loops on a database with no
+    # trans_global table, and a crash-looping pod in the Tilt UI during a
+    # cold start is the kind of red that trains you to ignore red.
+    resource_deps=['postgres', 'migrate-dtm'],               # Wait for Postgres + DTM's own tables before starting
+    port_forwards=['36789:36789'],                           # DTM console on localhost:36789
+    labels=['infra'],                                        # Group under "infra"
+)
+
+# ---------- Order Service k8s objects ----------
+k8s_yaml([                                                   # Apply the order service's manifests:
+    './deploy/dev/k8s/order-service-deployment.yaml',        # Deployment (runs the pods)
+    './deploy/dev/k8s/order-service-svc.yaml',               # Service (stable in-cluster address)
+])
+k8s_resource(
+    'order-service',                                         # Tilt resource for the order-service Deployment
+    resource_deps=['postgres', 'migrate-order', 'kafka-topics', 'dtm'],  # Wait for Postgres, its migrations, Kafka topics + DTM before starting
     labels=['services'],                                     # Group under "services"
 )

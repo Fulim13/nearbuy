@@ -1,0 +1,67 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: order-service
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: order-service
+  template:
+    metadata:
+      labels:
+        app: order-service
+    spec:
+      containers:
+        - name: order-service
+          image: nearbuy/order-service
+          imagePullPolicy: IfNotPresent
+          ports:
+            - name: grpc
+              containerPort: 9000
+            - name: branch
+              containerPort: 8000
+          env:
+            - name: GRPC_PORT
+              value: "9000"
+            - name: BRANCH_PORT
+              value: "8000"
+            - name: POD_NAME
+              valueFrom:
+                fieldRef: { fieldPath: metadata.name }
+            - name: KAFKA_BROKERS
+              value: "kafka:9092"
+            # The DTM server's HTTP API base. The /api/dtmsvr suffix is part of
+            # it -- dtmcli appends /submit, /query and so on to this string.
+            - name: DTM_SERVER
+              value: "http://dtm:36789/api/dtmsvr"
+            # The URLs DTM will call back. They are stored in trans_branch_op at
+            # Submit() time, so a transaction in flight keeps calling the URL it
+            # was submitted with -- renaming a Service breaks every unfinished
+            # Saga, not just new ones.
+            - name: ORDER_BRANCH_BASE
+              value: "http://order-service:8000/branch"
+            - name: VOUCHER_BRANCH_BASE
+              value: "http://voucher-service:8000/branch"
+            - name: POSTGRES_HOST
+              valueFrom:
+                configMapKeyRef: { name: app-config, key: POSTGRES_HOST }
+            - name: POSTGRES_USER
+              valueFrom:
+                secretKeyRef: { name: app-secrets, key: POSTGRES_USER }
+            - name: POSTGRES_PASSWORD
+              valueFrom:
+                secretKeyRef: { name: app-secrets, key: POSTGRES_PASSWORD }
+            - name: POSTGRES_DSN
+              value: "postgres://$(POSTGRES_USER):$(POSTGRES_PASSWORD)@$(POSTGRES_HOST):5432/order_db?sslmode=disable"
+          readinessProbe:
+            grpc: { port: 9000 }
+            initialDelaySeconds: 2
+            periodSeconds: 5
+          livenessProbe:
+            grpc: { port: 9000 }
+            initialDelaySeconds: 10
+            periodSeconds: 10
+          resources:
+            requests: { cpu: 100m, memory: 128Mi }
+            limits:   { cpu: 500m, memory: 512Mi }

@@ -2,19 +2,26 @@ package main
 
 import (
 	"context"
+	"errors"
 	"log/slog"
 	"net"
+	"net/http"
 	"os"
 	"os/signal"
 	"strings"
+	"sync"
 	"syscall"
+	"time"
 
+	"github.com/Fulim13/nearbuy/pkg/dtmx"
 	"github.com/Fulim13/nearbuy/pkg/grpx"
 	"github.com/Fulim13/nearbuy/pkg/kafkax"
 	"github.com/Fulim13/nearbuy/pkg/util"
+	"github.com/Fulim13/nearbuy/services/voucher-service/internal/branch"
 	"github.com/Fulim13/nearbuy/services/voucher-service/internal/handler"
 	"github.com/Fulim13/nearbuy/services/voucher-service/internal/service"
 	"github.com/jackc/pgx/v5/pgxpool"
+	"github.com/labstack/echo/v5"
 	"github.com/redis/go-redis/v9"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/health"
@@ -55,6 +62,9 @@ func main() {
 	producer := kafkax.NewProducer(brokers)
 	defer producer.Close()
 
+	sqlDB := dtmx.SQLDB(pool)
+	defer sqlDB.Close()
+
 	svc := service.NewVoucherService(pool, rdb, producer)
 
 	// Warm the seckill counters from Postgres before accepting traffic. A Redis
@@ -84,10 +94,40 @@ func main() {
 	healthSrv.SetServingStatus("", healthpb.HealthCheckResponse_SERVING)
 	reflection.Register(grpcServer)
 
+	var wg sync.WaitGroup
+
+	wg.Add(1)
 	go func() {
+		defer wg.Done()
 		slog.Info("voucher-service listening", "addr", listener.Addr().String())
 		if err := grpcServer.Serve(listener); err != nil {
 			slog.Error("serve", "error", err)
+			stop()
+		}
+	}()
+
+	// The second listener: DTM's Saga branch callbacks. HTTP, not gRPC, because
+	// DTM stores a URL per branch and calls it with an ordinary POST -- which
+	// also means a stuck transaction can be driven by hand with curl.
+	e := echo.New()
+	e.GET("/healthz", branch.Health)
+	branch.Register(e, branch.New(sqlDB, service.SQLStore{}))
+
+	branchPort := util.Env("BRANCH_PORT", "8000")
+	wg.Add(1)
+	go func() {
+		defer wg.Done()
+		sc := echo.StartConfig{
+			Address:         ":" + branchPort,
+			GracefulTimeout: 10 * time.Second,
+			HideBanner:      true,
+			OnShutdownError: func(err error) {
+				slog.Error("branch listener shutdown failed", "error", err)
+			},
+		}
+		slog.Info("voucher-service branch listener", "port", branchPort)
+		if err := sc.Start(ctx, e); err != nil && !errors.Is(err, http.ErrServerClosed) {
+			slog.Error("branch serve", "error", err)
 			stop()
 		}
 	}()
@@ -96,4 +136,6 @@ func main() {
 	slog.Info("shutting down")
 	healthSrv.SetServingStatus("", healthpb.HealthCheckResponse_NOT_SERVING)
 	grpcServer.GracefulStop()
+	wg.Wait()
+	slog.Info("stopped")
 }

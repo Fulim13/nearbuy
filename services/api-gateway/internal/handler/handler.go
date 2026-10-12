@@ -13,7 +13,7 @@ import (
 	"google.golang.org/grpc/status"
 )
 
-func Routes(e *echo.Echo, limiter *ratelimit.Limiter, sessions *session.Store, user *UserHandler, auth *AuthHandler, shop *ShopHandler, follow *FollowHandler, voucher *VoucherHandler) {
+func Routes(e *echo.Echo, limiter *ratelimit.Limiter, sessions *session.Store, user *UserHandler, auth *AuthHandler, shop *ShopHandler, follow *FollowHandler, voucher *VoucherHandler, order *OrderHandler) {
 	e.GET("/healthz", func(c *echo.Context) error {
 		return c.String(http.StatusOK, "ok")
 	})

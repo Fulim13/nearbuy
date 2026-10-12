@@ -10,5 +10,10 @@ spec:
     - name: grpc
       port: 9000
       targetPort: 9000
+    # DTM reaches the Saga branches here. Same Service, second port: the branches
+    # are part of this service, not a separate deployable.
+    - name: branch
+      port: 8000
+      targetPort: 8000
   selector:
     app: voucher-service

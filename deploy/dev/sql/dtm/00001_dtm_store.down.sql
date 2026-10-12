@@ -1,0 +1,6 @@
+DROP TABLE IF EXISTS kv;
+DROP TABLE IF EXISTS trans_branch_op;
+DROP TABLE IF EXISTS trans_global;
+DROP SEQUENCE IF EXISTS kv_seq;
+DROP SEQUENCE IF EXISTS trans_branch_op_seq;
+DROP SEQUENCE IF EXISTS trans_global_seq;
