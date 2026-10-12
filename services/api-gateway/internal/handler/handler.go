@@ -91,6 +91,9 @@ func Routes(e *echo.Echo, limiter *ratelimit.Limiter, sessions *session.Store, u
 	// voucher id is in the path and the user comes from the session.
 	authed.POST("/voucher-order/seckill/:id", voucher.seckill)
 
+	authed.GET("/voucher-order/:id", order.getOrder)
+	authed.GET("/voucher-orders", order.listMyOrders)
+
 	authed.POST("/voucher-order/:id/pay", order.pay)
 }
 
