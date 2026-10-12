@@ -20,3 +20,17 @@ SELECT * FROM voucher_order
 WHERE user_id = $1
 ORDER BY id DESC
 LIMIT $2 OFFSET $3;
+
+-- name: ListExpiredUnpaid :many
+-- Drives the S3 expiry sweep. The WHERE clause matches lesson 02's
+-- idx_order_status_create exactly -- (status, create_time) -- so this stays an
+-- index scan as voucher_order grows.
+--
+-- LIMIT, always: an unbounded sweep after an outage would submit tens of
+-- thousands of Sagas in one tick and DTM would be the thing that fell over.
+SELECT id, user_id, voucher_id
+FROM voucher_order
+WHERE status = 'unpaid'
+  AND create_time < now() - sqlc.arg('older_than')::interval
+ORDER BY create_time
+LIMIT sqlc.arg('max_rows');

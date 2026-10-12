@@ -8,6 +8,7 @@ import (
 	"net/http"
 	"os"
 	"os/signal"
+	"strconv"
 	"strings"
 	"sync"
 	"syscall"
@@ -20,6 +21,8 @@ import (
 	"github.com/Fulim13/nearbuy/services/order-service/internal/branch"
 	"github.com/Fulim13/nearbuy/services/order-service/internal/consumer"
 	"github.com/Fulim13/nearbuy/services/order-service/internal/handler"
+	"github.com/Fulim13/nearbuy/services/order-service/internal/saga"
+	"github.com/Fulim13/nearbuy/services/order-service/internal/scheduler"
 	"github.com/Fulim13/nearbuy/services/order-service/internal/service"
 	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/labstack/echo/v5"
@@ -57,7 +60,19 @@ func main() {
 	sqlDB := dtmx.SQLDB(pool)
 	defer sqlDB.Close()
 
-	svc := service.NewOrderService(pool)
+	// One Endpoints value, built once, shared by all three Sagas. The branch
+	// URLs are stored per branch in trans_branch_op at Submit() time, so a
+	// transaction in flight keeps calling the URL it was submitted with --
+	// changing one of these does not retarget work already running.
+	endpoints := saga.Endpoints{
+		DTMServer:   util.Env("DTM_SERVER", "http://dtm:36789/api/dtmsvr"),
+		OrderBase:   util.Env("ORDER_BRANCH_BASE", "http://order-service:8000/branch"),
+		VoucherBase: util.Env("VOUCHER_BRANCH_BASE", "http://voucher-service:8000/branch"),
+		UserBase:    util.Env("USER_BRANCH_BASE", "http://user-service:8000/branch"),
+	}
+	starter := consumer.NewSagaStarter(endpoints)
+
+	svc := service.NewOrderService(pool, endpoints)
 
 	var wg sync.WaitGroup
 
@@ -117,12 +132,6 @@ func main() {
 	dlq := kafkax.NewProducer(brokers)
 	defer dlq.Close()
 
-	starter := consumer.NewSagaStarter(
-		util.Env("DTM_SERVER", "http://dtm:36789/api/dtmsvr"),
-		util.Env("ORDER_BRANCH_BASE", "http://order-service:8000/branch"),
-		util.Env("VOUCHER_BRANCH_BASE", "http://voucher-service:8000/branch"),
-	)
-
 	cons := kafkax.NewConsumer(kafkax.ConsumerConfig{
 		Brokers: brokers,
 		Topic:   kafkax.TopicSeckillAdmitted,
@@ -140,10 +149,60 @@ func main() {
 		}
 	}()
 
+	// ------------------------------------------------- S3's expiry scheduler
+	//
+	// Every replica runs this goroutine. Only one does the work on any given
+	// tick, because claim() takes a Postgres advisory lock -- and even if two
+	// did, expire-{orderID} is deterministic and DTM would run it once.
+	expiry := scheduler.NewExpiry(pool, endpoints, scheduler.Config{
+		Interval: envDuration("EXPIRY_INTERVAL", 30*time.Second),
+		Expiry:   envDuration("ORDER_EXPIRY", 15*time.Minute),
+		Batch:    int32(envInt("EXPIRY_BATCH", 100)),
+	})
+	wg.Add(1)
+	go func() {
+		defer wg.Done()
+		if err := expiry.Run(ctx); err != nil && !errors.Is(err, context.Canceled) {
+			slog.Error("expiry scheduler stopped", "error", err)
+			stop()
+		}
+	}()
+
 	<-ctx.Done()
 	slog.Info("shutting down")
 	healthSrv.SetServingStatus("", healthpb.HealthCheckResponse_NOT_SERVING)
 	grpcServer.GracefulStop()
 	wg.Wait()
 	slog.Info("stopped")
+}
+
+// envDuration takes a Go duration string ("15m", "30s"), so the demo can set
+// ORDER_EXPIRY=20s without a second unit-carrying variable.
+func envDuration(key string, fallback time.Duration) time.Duration {
+	v := os.Getenv(key)
+	if v == "" {
+		return fallback
+	}
+	d, err := time.ParseDuration(v)
+	if err != nil {
+		// Loud, and then carry on with the default. A typo in ORDER_EXPIRY
+		// should not stop the service from booting, but it must not silently
+		// become 0 either -- a zero expiry cancels every order instantly.
+		slog.Error("bad duration, using default", "key", key, "value", v, "default", fallback)
+		return fallback
+	}
+	return d
+}
+
+func envInt(key string, fallback int) int {
+	v := os.Getenv(key)
+	if v == "" {
+		return fallback
+	}
+	n, err := strconv.Atoi(v)
+	if err != nil || n <= 0 {
+		slog.Error("bad int, using default", "key", key, "value", v, "default", fallback)
+		return fallback
+	}
+	return n
 }

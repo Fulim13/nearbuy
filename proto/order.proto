@@ -13,6 +13,7 @@ option go_package = "github.com/Fulim13/nearbuy/gen/golang/v1/order;order";
 service Order {
 	rpc GetOrder(GetOrderRequest) returns (GetOrderResponse);
 	rpc ListOrdersByUser(ListOrdersByUserRequest) returns (ListOrdersByUserResponse);
+	rpc PayOrder(PayOrderRequest) returns (PayOrderResponse);
 }
 
 // OrderInfo, not Order: a message cannot share its name with the service.
@@ -47,4 +48,16 @@ message ListOrdersByUserRequest {
 }
 message ListOrdersByUserResponse {
 	repeated OrderInfo orders = 1;
+}
+
+message PayOrderRequest {
+	int64 order_id = 1;
+	// The actor, from x-user-id. Taken explicitly rather than read from metadata
+	// so grpcurl can drive it, same as voucher.Seckill.
+	int64 user_id  = 2;
+}
+// The order AFTER the Saga finished. No separate "ok" field: a failed S2 is a
+// gRPC error, because the caller asked for one thing and did not get it.
+message PayOrderResponse {
+	OrderInfo order = 1;
 }

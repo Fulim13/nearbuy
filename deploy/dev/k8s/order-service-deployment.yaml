@@ -43,6 +43,8 @@ spec:
               value: "http://order-service:8000/branch"
             - name: VOUCHER_BRANCH_BASE
               value: "http://voucher-service:8000/branch"
+            - name: USER_BRANCH_BASE
+              value: "http://user-service:8000/branch"
             - name: POSTGRES_HOST
               valueFrom:
                 configMapKeyRef: { name: app-config, key: POSTGRES_HOST }
@@ -54,6 +56,19 @@ spec:
                 secretKeyRef: { name: app-secrets, key: POSTGRES_PASSWORD }
             - name: POSTGRES_DSN
               value: "postgres://$(POSTGRES_USER):$(POSTGRES_PASSWORD)@$(POSTGRES_HOST):5432/order_db?sslmode=disable"
+            # --- S3's expiry sweeper ---
+            #
+            # Every replica runs the goroutine; a Postgres advisory lock means
+            # one does the work per tick. 15m is the real window -- set
+            # ORDER_EXPIRY=20s when you want to watch it happen.
+            - name: EXPIRY_INTERVAL
+              value: "30s"
+            - name: ORDER_EXPIRY
+              value: "15m"
+            # Rows per tick. Bounded so a backlog after an outage drains over
+            # several ticks instead of submitting every Saga at once.
+            - name: EXPIRY_BATCH
+              value: "100"
           readinessProbe:
             grpc: { port: 9000 }
             initialDelaySeconds: 2

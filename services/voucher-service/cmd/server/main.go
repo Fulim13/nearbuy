@@ -111,7 +111,7 @@ func main() {
 	// also means a stuck transaction can be driven by hand with curl.
 	e := echo.New()
 	e.GET("/healthz", branch.Health)
-	branch.Register(e, branch.New(sqlDB, service.SQLStore{}))
+	branch.Register(e, branch.New(sqlDB, service.SQLStore{}, svc.Admitter()))
 
 	branchPort := util.Env("BRANCH_PORT", "8000")
 	wg.Add(1)

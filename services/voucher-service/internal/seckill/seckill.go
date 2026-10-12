@@ -114,15 +114,17 @@ func (a *Admitter) Admit(ctx context.Context, voucherID, userID int64) (Code, er
 	return Code(res), nil
 }
 
-// Release undoes an admission. Call it when everything after the admission
-// failed -- otherwise the stock is spent on an order that will never exist.
-//
-// Best effort by design: if this also fails, the stock stays spent and the
-// reconciliation sweeper is what recovers it. There is no way to
-// make "two systems agree" atomic here, only ways to make the window small.
-func (a *Admitter) Release(ctx context.Context, voucherID, userID int64) error {
-	return releaseScript.Run(ctx, a.rdb,
-		[]string{StockKey(voucherID), OrderKey(voucherID)}, userID).Err()
+// It returns whether it ACTUALLY released. release.lua checks SISMEMBER first,
+// so calling it twice releases once -- the set membership IS the idempotency
+// token, which is why lesson 14's Saga branches can call this from inside a
+// transaction that may be retried. A bare SREM + INCRBY would double the stock.
+func (a *Admitter) Release(ctx context.Context, voucherID, userID int64) (bool, error) {
+	n, err := releaseScript.Run(ctx, a.rdb,
+		[]string{StockKey(voucherID), OrderKey(voucherID)}, userID).Int64()
+	if err != nil {
+		return false, err
+	}
+	return n == 1, nil
 }
 
 func (a *Admitter) window(ctx context.Context, voucherID int64) (Window, error) {

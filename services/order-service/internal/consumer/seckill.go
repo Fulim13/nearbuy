@@ -10,6 +10,7 @@ import (
 	"github.com/Fulim13/nearbuy/pkg/dtmx"
 	"github.com/Fulim13/nearbuy/pkg/kafkax"
 	"github.com/Fulim13/nearbuy/services/order-service/internal/branch"
+	"github.com/Fulim13/nearbuy/services/order-service/internal/saga"
 	"github.com/dtm-labs/client/dtmcli"
 	"github.com/segmentio/kafka-go"
 )
@@ -26,14 +27,10 @@ type SeckillAdmitted struct {
 }
 
 type SagaStarter struct {
-	dtmServer  string // http://dtm:36789/api/dtmsvr
-	orderBase  string // http://order-service:8000/branch
-	voucherURL string // http://voucher-service:8000/branch
+	e saga.Endpoints
 }
 
-func NewSagaStarter(dtmServer, orderBase, voucherBase string) *SagaStarter {
-	return &SagaStarter{dtmServer: dtmServer, orderBase: orderBase, voucherURL: voucherBase}
-}
+func NewSagaStarter(e saga.Endpoints) *SagaStarter { return &SagaStarter{e: e} }
 
 // Handle starts Saga S1 for one admitted seckill.
 func (s *SagaStarter) Handle(ctx context.Context, m kafka.Message) error {
@@ -82,9 +79,9 @@ func (s *SagaStarter) Handle(ctx context.Context, m kafka.Message) error {
 	// bought.
 	//
 	// Do NOT use SetConcurrent(): running both in parallel loses this ordering.
-	saga := dtmcli.NewSaga(s.dtmServer, gid).
-		Add(s.orderBase+"/create_order", s.orderBase+"/create_order_comp", payload).
-		Add(s.voucherURL+"/deduct_stock", s.voucherURL+"/deduct_stock_comp", deduct)
+	saga := dtmcli.NewSaga(s.e.DTMServer, gid).
+		Add(s.e.OrderBase+"/create_order", s.e.OrderBase+"/create_order_comp", payload).
+		Add(s.e.VoucherBase+"/deduct_stock", s.e.VoucherBase+"/deduct_stock_comp", deduct)
 
 	// Wait 10s between retries when a branch fails with a transient error (timeout, 5xx, network). 10 is the minimum DTM accepts.
 	//
@@ -113,7 +110,7 @@ func (s *SagaStarter) Handle(ctx context.Context, m kafka.Message) error {
 		// But the work is already done, so this is OK. Return nil.
 		// (If we return the error, Kafka keeps retrying and finally puts
 		// this good message in the dead-letter queue by mistake.)
-		if st, qerr := dtmx.QueryTrans(ctx, s.dtmServer, gid); qerr == nil && st != nil {
+		if st, qerr := dtmx.QueryTrans(ctx, s.e.DTMServer, gid); qerr == nil && st != nil {
 			slog.Info("saga already exists, acking redelivery",
 				"gid", gid, "status", st.Status)
 			return nil

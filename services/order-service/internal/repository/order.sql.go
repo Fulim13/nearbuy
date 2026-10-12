@@ -7,6 +7,8 @@ package repository
 
 import (
 	"context"
+
+	"github.com/jackc/pgx/v5/pgtype"
 )
 
 const createOrder = `-- name: CreateOrder :execrows
@@ -74,6 +76,52 @@ func (q *Queries) GetOrder(ctx context.Context, id int64) (VoucherOrder, error) 
 		&i.UpdateTime,
 	)
 	return i, err
+}
+
+const listExpiredUnpaid = `-- name: ListExpiredUnpaid :many
+SELECT id, user_id, voucher_id
+FROM voucher_order
+WHERE status = 'unpaid'
+  AND create_time < now() - $1::interval
+ORDER BY create_time
+LIMIT $2
+`
+
+type ListExpiredUnpaidParams struct {
+	OlderThan pgtype.Interval `json:"older_than"`
+	MaxRows   int32           `json:"max_rows"`
+}
+
+type ListExpiredUnpaidRow struct {
+	ID        int64 `json:"id"`
+	UserID    int64 `json:"user_id"`
+	VoucherID int64 `json:"voucher_id"`
+}
+
+// Drives the S3 expiry sweep. The WHERE clause matches lesson 02's
+// idx_order_status_create exactly -- (status, create_time) -- so this stays an
+// index scan as voucher_order grows.
+//
+// LIMIT, always: an unbounded sweep after an outage would submit tens of
+// thousands of Sagas in one tick and DTM would be the thing that fell over.
+func (q *Queries) ListExpiredUnpaid(ctx context.Context, arg ListExpiredUnpaidParams) ([]ListExpiredUnpaidRow, error) {
+	rows, err := q.db.Query(ctx, listExpiredUnpaid, arg.OlderThan, arg.MaxRows)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []ListExpiredUnpaidRow
+	for rows.Next() {
+		var i ListExpiredUnpaidRow
+		if err := rows.Scan(&i.ID, &i.UserID, &i.VoucherID); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
 }
 
 const listOrdersByUser = `-- name: ListOrdersByUser :many

@@ -99,3 +99,31 @@ func (h *OrderHandler) listMyOrders(c *echo.Context) error {
 	}
 	return c.JSON(http.StatusOK, out)
 }
+
+// pay starts Saga S2 and waits for it, so this handler is the one place in the
+// gateway that holds a request open across a distributed transaction.
+//
+// POST, not PATCH: paying is not a partial update of an order, it is an action
+// with effects in two other databases.
+func (h *OrderHandler) pay(c *echo.Context) error {
+	id, err := strconv.ParseInt(c.Param("id"), 10, 64)
+	if err != nil || id <= 0 {
+		return echo.NewHTTPError(http.StatusBadRequest, "invalid order id")
+	}
+	u, ok := mw.SessionUser(c)
+	if !ok {
+		return echo.NewHTTPError(http.StatusUnauthorized, "authentication required")
+	}
+
+	resp, err := h.order.PayOrder(c.Request().Context(), &orderpb.PayOrderRequest{
+		OrderId: id,
+		// From the SESSION. A user_id in the body would let anyone spend anyone
+		// else's balance.
+		UserId: u.ID,
+	})
+	if err != nil {
+		return grpcError(err)
+	}
+	return c.JSON(http.StatusOK, orderOut(resp.GetOrder()))
+}
+

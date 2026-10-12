@@ -60,6 +60,10 @@ func NewVoucherService(pool *pgxpool.Pool, rdb *redis.Client, producer *kafkax.P
 	return s
 }
 
+func (s *VoucherService) Admitter() *seckill.Admitter {
+	return s.admitter
+}
+
 func (s *VoucherService) withTx(ctx context.Context, fn func(q *repository.Queries) error) error {
 	tx, err := s.pool.Begin(ctx)
 	if err != nil {
@@ -273,10 +277,11 @@ func (s *VoucherService) releaseQuietly(ctx context.Context, voucherID, userID i
 	// stock back matters more than honouring its deadline.
 	relCtx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
 	defer cancel()
-	if err := s.admitter.Release(relCtx, voucherID, userID); err != nil {
+	released, err := s.admitter.Release(relCtx, voucherID, userID)
+	if err != nil {
 		slog.Error("STOCK LEAKED - release failed after admission",
 			"voucher_id", voucherID, "user_id", userID, "why", why, "error", err)
 		return
 	}
-	slog.Warn("admission released", "voucher_id", voucherID, "user_id", userID, "why", why)
+	slog.Warn("admission released", "voucher_id", voucherID, "user_id", userID, "why", why, "released", released)
 }

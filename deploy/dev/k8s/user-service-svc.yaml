@@ -11,5 +11,8 @@ spec:
     - name: grpc
       port: 9000
       targetPort: 9000
+    - name: branch
+      port: 8000
+      targetPort: 8000
   selector:
     app: user-service

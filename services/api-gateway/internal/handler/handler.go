@@ -90,6 +90,8 @@ func Routes(e *echo.Echo, limiter *ratelimit.Limiter, sessions *session.Store, u
 	// The seckill itself. POST because it attempts to create something; the
 	// voucher id is in the path and the user comes from the session.
 	authed.POST("/voucher-order/seckill/:id", voucher.seckill)
+
+	authed.POST("/voucher-order/:id/pay", order.pay)
 }
 
 func ping(c *echo.Context) error {
@@ -113,6 +115,14 @@ func grpcError(err error) error {
 		return echo.NewHTTPError(http.StatusForbidden, st.Message())
 	case codes.Unauthenticated:
 		return echo.NewHTTPError(http.StatusUnauthorized, st.Message())
+	case codes.FailedPrecondition:
+		return echo.NewHTTPError(http.StatusConflict, st.Message())
+	// Aborted is how order-service reports "S2 ran and rolled back" -- most
+	// often an insufficient balance. 402 Payment Required says exactly that,
+	// and the money and the order status are both untouched, so it is safe for
+	// the client to retry after a top-up.
+	case codes.Aborted:
+		return echo.NewHTTPError(http.StatusPaymentRequired, st.Message())
 	case codes.DeadlineExceeded:
 		return echo.NewHTTPError(http.StatusGatewayTimeout, "upstream timeout")
 	case codes.Unavailable:

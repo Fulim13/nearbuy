@@ -332,6 +332,106 @@ func (x *ListOrdersByUserResponse) GetOrders() []*OrderInfo {
 	return nil
 }
 
+type PayOrderRequest struct {
+	state   protoimpl.MessageState `protogen:"open.v1"`
+	OrderId int64                  `protobuf:"varint,1,opt,name=order_id,json=orderId,proto3" json:"order_id,omitempty"`
+	// The actor, from x-user-id. Taken explicitly rather than read from metadata
+	// so grpcurl can drive it, same as voucher.Seckill.
+	UserId        int64 `protobuf:"varint,2,opt,name=user_id,json=userId,proto3" json:"user_id,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *PayOrderRequest) Reset() {
+	*x = PayOrderRequest{}
+	mi := &file_order_proto_msgTypes[5]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *PayOrderRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*PayOrderRequest) ProtoMessage() {}
+
+func (x *PayOrderRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_order_proto_msgTypes[5]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use PayOrderRequest.ProtoReflect.Descriptor instead.
+func (*PayOrderRequest) Descriptor() ([]byte, []int) {
+	return file_order_proto_rawDescGZIP(), []int{5}
+}
+
+func (x *PayOrderRequest) GetOrderId() int64 {
+	if x != nil {
+		return x.OrderId
+	}
+	return 0
+}
+
+func (x *PayOrderRequest) GetUserId() int64 {
+	if x != nil {
+		return x.UserId
+	}
+	return 0
+}
+
+// The order AFTER the Saga finished. No separate "ok" field: a failed S2 is a
+// gRPC error, because the caller asked for one thing and did not get it.
+type PayOrderResponse struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Order         *OrderInfo             `protobuf:"bytes,1,opt,name=order,proto3" json:"order,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *PayOrderResponse) Reset() {
+	*x = PayOrderResponse{}
+	mi := &file_order_proto_msgTypes[6]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *PayOrderResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*PayOrderResponse) ProtoMessage() {}
+
+func (x *PayOrderResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_order_proto_msgTypes[6]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use PayOrderResponse.ProtoReflect.Descriptor instead.
+func (*PayOrderResponse) Descriptor() ([]byte, []int) {
+	return file_order_proto_rawDescGZIP(), []int{6}
+}
+
+func (x *PayOrderResponse) GetOrder() *OrderInfo {
+	if x != nil {
+		return x.Order
+	}
+	return nil
+}
+
 var File_order_proto protoreflect.FileDescriptor
 
 const file_order_proto_rawDesc = "" +
@@ -364,10 +464,16 @@ const file_order_proto_rawDesc = "" +
 	"\x05limit\x18\x02 \x01(\x05R\x05limit\x12\x16\n" +
 	"\x06offset\x18\x03 \x01(\x05R\x06offset\"G\n" +
 	"\x18ListOrdersByUserResponse\x12+\n" +
-	"\x06orders\x18\x01 \x03(\v2\x13.order.v1.OrderInfoR\x06orders2\xa5\x01\n" +
+	"\x06orders\x18\x01 \x03(\v2\x13.order.v1.OrderInfoR\x06orders\"E\n" +
+	"\x0fPayOrderRequest\x12\x19\n" +
+	"\border_id\x18\x01 \x01(\x03R\aorderId\x12\x17\n" +
+	"\auser_id\x18\x02 \x01(\x03R\x06userId\"=\n" +
+	"\x10PayOrderResponse\x12)\n" +
+	"\x05order\x18\x01 \x01(\v2\x13.order.v1.OrderInfoR\x05order2\xe8\x01\n" +
 	"\x05Order\x12A\n" +
 	"\bGetOrder\x12\x19.order.v1.GetOrderRequest\x1a\x1a.order.v1.GetOrderResponse\x12Y\n" +
-	"\x10ListOrdersByUser\x12!.order.v1.ListOrdersByUserRequest\x1a\".order.v1.ListOrdersByUserResponseB6Z4github.com/Fulim13/nearbuy/gen/golang/v1/order;orderb\x06proto3"
+	"\x10ListOrdersByUser\x12!.order.v1.ListOrdersByUserRequest\x1a\".order.v1.ListOrdersByUserResponse\x12A\n" +
+	"\bPayOrder\x12\x19.order.v1.PayOrderRequest\x1a\x1a.order.v1.PayOrderResponseB6Z4github.com/Fulim13/nearbuy/gen/golang/v1/order;orderb\x06proto3"
 
 var (
 	file_order_proto_rawDescOnce sync.Once
@@ -381,26 +487,31 @@ func file_order_proto_rawDescGZIP() []byte {
 	return file_order_proto_rawDescData
 }
 
-var file_order_proto_msgTypes = make([]protoimpl.MessageInfo, 5)
+var file_order_proto_msgTypes = make([]protoimpl.MessageInfo, 7)
 var file_order_proto_goTypes = []any{
 	(*OrderInfo)(nil),                // 0: order.v1.OrderInfo
 	(*GetOrderRequest)(nil),          // 1: order.v1.GetOrderRequest
 	(*GetOrderResponse)(nil),         // 2: order.v1.GetOrderResponse
 	(*ListOrdersByUserRequest)(nil),  // 3: order.v1.ListOrdersByUserRequest
 	(*ListOrdersByUserResponse)(nil), // 4: order.v1.ListOrdersByUserResponse
+	(*PayOrderRequest)(nil),          // 5: order.v1.PayOrderRequest
+	(*PayOrderResponse)(nil),         // 6: order.v1.PayOrderResponse
 }
 var file_order_proto_depIdxs = []int32{
 	0, // 0: order.v1.GetOrderResponse.order:type_name -> order.v1.OrderInfo
 	0, // 1: order.v1.ListOrdersByUserResponse.orders:type_name -> order.v1.OrderInfo
-	1, // 2: order.v1.Order.GetOrder:input_type -> order.v1.GetOrderRequest
-	3, // 3: order.v1.Order.ListOrdersByUser:input_type -> order.v1.ListOrdersByUserRequest
-	2, // 4: order.v1.Order.GetOrder:output_type -> order.v1.GetOrderResponse
-	4, // 5: order.v1.Order.ListOrdersByUser:output_type -> order.v1.ListOrdersByUserResponse
-	4, // [4:6] is the sub-list for method output_type
-	2, // [2:4] is the sub-list for method input_type
-	2, // [2:2] is the sub-list for extension type_name
-	2, // [2:2] is the sub-list for extension extendee
-	0, // [0:2] is the sub-list for field type_name
+	0, // 2: order.v1.PayOrderResponse.order:type_name -> order.v1.OrderInfo
+	1, // 3: order.v1.Order.GetOrder:input_type -> order.v1.GetOrderRequest
+	3, // 4: order.v1.Order.ListOrdersByUser:input_type -> order.v1.ListOrdersByUserRequest
+	5, // 5: order.v1.Order.PayOrder:input_type -> order.v1.PayOrderRequest
+	2, // 6: order.v1.Order.GetOrder:output_type -> order.v1.GetOrderResponse
+	4, // 7: order.v1.Order.ListOrdersByUser:output_type -> order.v1.ListOrdersByUserResponse
+	6, // 8: order.v1.Order.PayOrder:output_type -> order.v1.PayOrderResponse
+	6, // [6:9] is the sub-list for method output_type
+	3, // [3:6] is the sub-list for method input_type
+	3, // [3:3] is the sub-list for extension type_name
+	3, // [3:3] is the sub-list for extension extendee
+	0, // [0:3] is the sub-list for field type_name
 }
 
 func init() { file_order_proto_init() }
@@ -415,7 +526,7 @@ func file_order_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_order_proto_rawDesc), len(file_order_proto_rawDesc)),
 			NumEnums:      0,
-			NumMessages:   5,
+			NumMessages:   7,
 			NumExtensions: 0,
 			NumServices:   1,
 		},

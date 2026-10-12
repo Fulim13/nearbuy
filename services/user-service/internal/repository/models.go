@@ -28,6 +28,17 @@ type AppUser struct {
 	UpdateTime     time.Time  `json:"update_time"`
 }
 
+type DtmBarrierBarrier struct {
+	ID         int64     `json:"id"`
+	TransType  string    `json:"trans_type"`
+	Gid        string    `json:"gid"`
+	BranchID   string    `json:"branch_id"`
+	Op         string    `json:"op"`
+	BarrierID  string    `json:"barrier_id"`
+	Reason     string    `json:"reason"`
+	CreateTime time.Time `json:"create_time"`
+}
+
 type Follow struct {
 	ID           int64     `json:"id"`
 	UserID       int64     `json:"user_id"`

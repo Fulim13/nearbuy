@@ -115,7 +115,7 @@ k8s_yaml([                                                   # Apply the user se
 ])
 k8s_resource(
     'user-service',                                          # Tilt resource for the user-service Deployment
-    resource_deps=['postgres', 'migrate-user'],              # Wait for Postgres + its migrations before starting
+    resource_deps=['postgres', 'migrate-user', 'dtm'],            # Wait for Postgres + its migrations before starting
     labels=['services'],                                     # Group under "services"
 )
 
