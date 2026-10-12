@@ -121,4 +121,5 @@ type VoucherOrder struct {
 	UseTime    *time.Time  `json:"use_time"`
 	RefundTime *time.Time  `json:"refund_time"`
 	UpdateTime time.Time   `json:"update_time"`
+	ShopID     int64       `json:"shop_id"`
 }

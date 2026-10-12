@@ -12,8 +12,8 @@ import (
 )
 
 const createOrder = `-- name: CreateOrder :execrows
-INSERT INTO voucher_order (id, user_id, voucher_id, pay_value, status)
-VALUES ($1, $2, $3, $4, 'unpaid')
+INSERT INTO voucher_order (id, user_id, voucher_id, shop_id, pay_value, status)
+VALUES ($1, $2, $3, $4, $5, 'unpaid')
 ON CONFLICT (id) DO NOTHING
 `
 
@@ -21,6 +21,7 @@ type CreateOrderParams struct {
 	ID        int64 `json:"id"`
 	UserID    int64 `json:"user_id"`
 	VoucherID int64 `json:"voucher_id"`
+	ShopID    int64 `json:"shop_id"`
 	PayValue  int64 `json:"pay_value"`
 }
 
@@ -32,6 +33,7 @@ func (q *Queries) CreateOrder(ctx context.Context, arg CreateOrderParams) (int64
 		arg.ID,
 		arg.UserID,
 		arg.VoucherID,
+		arg.ShopID,
 		arg.PayValue,
 	)
 	if err != nil {
@@ -56,7 +58,7 @@ func (q *Queries) DeleteOrder(ctx context.Context, id int64) (int64, error) {
 }
 
 const getOrder = `-- name: GetOrder :one
-SELECT id, user_id, voucher_id, pay_value, pay_type, status, create_time, pay_time, use_time, refund_time, update_time FROM voucher_order WHERE id = $1
+SELECT id, user_id, voucher_id, pay_value, pay_type, status, create_time, pay_time, use_time, refund_time, update_time, shop_id FROM voucher_order WHERE id = $1
 `
 
 func (q *Queries) GetOrder(ctx context.Context, id int64) (VoucherOrder, error) {
@@ -74,6 +76,7 @@ func (q *Queries) GetOrder(ctx context.Context, id int64) (VoucherOrder, error) 
 		&i.UseTime,
 		&i.RefundTime,
 		&i.UpdateTime,
+		&i.ShopID,
 	)
 	return i, err
 }
@@ -125,7 +128,7 @@ func (q *Queries) ListExpiredUnpaid(ctx context.Context, arg ListExpiredUnpaidPa
 }
 
 const listOrdersByUser = `-- name: ListOrdersByUser :many
-SELECT id, user_id, voucher_id, pay_value, pay_type, status, create_time, pay_time, use_time, refund_time, update_time FROM voucher_order
+SELECT id, user_id, voucher_id, pay_value, pay_type, status, create_time, pay_time, use_time, refund_time, update_time, shop_id FROM voucher_order
 WHERE user_id = $1
 ORDER BY id DESC
 LIMIT $2 OFFSET $3
@@ -158,6 +161,7 @@ func (q *Queries) ListOrdersByUser(ctx context.Context, arg ListOrdersByUserPara
 			&i.UseTime,
 			&i.RefundTime,
 			&i.UpdateTime,
+			&i.ShopID,
 		); err != nil {
 			return nil, err
 		}

@@ -62,6 +62,7 @@ func (s *SagaStarter) Handle(ctx context.Context, m kafka.Message) error {
 		OrderID:   ev.OrderID,
 		UserID:    ev.UserID,
 		VoucherID: ev.VoucherID,
+		ShopID:    ev.ShopID,
 		PayValue:  ev.PayValue,
 	}
 	deduct := map[string]any{"voucher_id": ev.VoucherID, "qty": 1}

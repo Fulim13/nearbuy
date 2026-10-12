@@ -31,6 +31,7 @@ type CreateOrderReq struct {
 	OrderID   int64 `json:"order_id"`
 	UserID    int64 `json:"user_id"`
 	VoucherID int64 `json:"voucher_id"`
+	ShopID    int64 `json:"shop_id"`
 	PayValue  int64 `json:"pay_value"`
 }
 

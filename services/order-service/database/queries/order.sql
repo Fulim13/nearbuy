@@ -2,8 +2,8 @@
 -- Saga S1's forward action. ON CONFLICT DO NOTHING so a redelivery that somehow
 -- gets past the barrier is still harmless -- defence in depth, since the barrier
 -- should already have skipped it.
-INSERT INTO voucher_order (id, user_id, voucher_id, pay_value, status)
-VALUES ($1, $2, $3, $4, 'unpaid')
+INSERT INTO voucher_order (id, user_id, voucher_id, shop_id, pay_value, status)
+VALUES ($1, $2, $3, $4, $5, 'unpaid')
 ON CONFLICT (id) DO NOTHING;
 
 -- name: DeleteOrder :execrows

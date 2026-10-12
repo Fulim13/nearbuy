@@ -86,7 +86,10 @@ func main() {
 	grpcServer := grpc.NewServer(
 		grpc.ChainUnaryInterceptor(grpx.UnaryServerInterceptor()),
 	)
-	handler.NewGRPCHandler(grpcServer, svc)
+	brokers := strings.Split(util.Env("KAFKA_BROKERS", "localhost:9092"), ",")
+	producer := kafkax.NewProducer(brokers)
+	defer producer.Close()
+	handler.NewGRPCHandler(grpcServer, svc, producer)
 
 	healthSrv := health.NewServer()
 	healthpb.RegisterHealthServer(grpcServer, healthSrv)
@@ -128,7 +131,6 @@ func main() {
 	}()
 
 	// -------------------------------------------- seckill.admitted consumer
-	brokers := strings.Split(util.Env("KAFKA_BROKERS", "localhost:9092"), ",")
 	dlq := kafkax.NewProducer(brokers)
 	defer dlq.Close()
 

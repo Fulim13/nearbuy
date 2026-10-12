@@ -68,10 +68,10 @@ type SQLStore struct{}
 
 func (SQLStore) CreateOrder(tx *sql.Tx, r branch.CreateOrderReq) error {
 	_, err := tx.Exec(`
-		INSERT INTO voucher_order (id, user_id, voucher_id, pay_value, status)
-		VALUES ($1, $2, $3, $4, 'unpaid')
+		INSERT INTO voucher_order (id, user_id, voucher_id, shop_id, pay_value, status)
+		VALUES ($1, $2, $3, $4, $5, 'unpaid')
 		ON CONFLICT (id) DO NOTHING`,
-		r.OrderID, r.UserID, r.VoucherID, r.PayValue)
+		r.OrderID, r.UserID, r.VoucherID, r.ShopID, r.PayValue)
 	if err != nil {
 		return fmt.Errorf("insert order: %w", err)
 	}
