@@ -1,9 +1,10 @@
 import { createBrowserRouter } from 'react-router-dom';
 import PrivateRoutes from './components/PrivateRoutes';
+import RoleRoutes from './components/RoleRoutes';
+import ShopsRedirect from './components/ShopsRedirect';
 import CreateShopPage from './pages/CreateShopPage';
 import EditShopPage from './pages/EditShopPage';
 import ErrorPage from './pages/ErrorPage';
-import HomePage from './pages/HomePage';
 import Layout from './pages/Layout';
 import LoginPage from './pages/LoginPage';
 import OrderDetailPage from './pages/OrderDetailPage';
@@ -19,9 +20,9 @@ const router = createBrowserRouter([
     element: <Layout />,
     errorElement: <ErrorPage />,
     children: [
-      { index: true, element: <HomePage /> },
+      { index: true, element: <ShopListPage /> },
       { path: 'login', element: <LoginPage /> },
-      { path: 'shops', element: <ShopListPage /> },
+      { path: 'shops', element: <ShopsRedirect /> },
       { path: 'shops/:id', element: <ShopDetailPage /> },
       { path: 'users', element: <UsersPage /> },
       { path: 'users/:id', element: <UserPage /> },
@@ -29,10 +30,20 @@ const router = createBrowserRouter([
         // Layout route: everything below needs a session.
         element: <PrivateRoutes />,
         children: [
-          { path: 'shops/new', element: <CreateShopPage /> },
-          { path: 'shops/:id/edit', element: <EditShopPage /> },
-          { path: 'orders', element: <OrdersPage /> },
-          { path: 'orders/:id', element: <OrderDetailPage /> },
+          {
+            element: <RoleRoutes allow="admin" />,
+            children: [
+              { path: 'shops/new', element: <CreateShopPage /> },
+              { path: 'shops/:id/edit', element: <EditShopPage /> },
+            ],
+          },
+          {
+            element: <RoleRoutes allow="customer" />,
+            children: [
+              { path: 'orders', element: <OrdersPage /> },
+              { path: 'orders/:id', element: <OrderDetailPage /> },
+            ],
+          },
         ],
       },
     ],

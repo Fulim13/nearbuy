@@ -81,6 +81,24 @@ func (s *ShopService) ListShopTypes(ctx context.Context) ([]repository.ShopType,
 		})
 }
 
+// ListShops is the unfiltered browse list. NOT cached, for the same reason as
+// ListShopsByType: a page of a list goes stale on every shop write.
+func (s *ShopService) ListShops(ctx context.Context, page, pageSize int32) ([]repository.Shop, int64, error) {
+	limit, offset := paginate(page, pageSize)
+	shops, err := s.repo.ListShops(ctx, repository.ListShopsParams{Limit: limit, Offset: offset})
+	if err != nil {
+		return nil, 0, err
+	}
+	total, err := s.repo.CountShops(ctx)
+	if err != nil {
+		return nil, 0, err
+	}
+	if shops == nil {
+		shops = []repository.Shop{}
+	}
+	return shops, total, nil
+}
+
 // ListShopsByType is NOT cached.
 func (s *ShopService) ListShopsByType(ctx context.Context, typeID int64, page, pageSize int32) ([]repository.Shop, int64, error) {
 	limit, offset := paginate(page, pageSize)

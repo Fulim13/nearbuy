@@ -15,13 +15,11 @@ import { useState, type ReactNode } from 'react';
 import { Link, useParams } from 'react-router-dom';
 import OrderStatusChip from '../components/OrderStatusChip';
 import PageQrCode from '../components/PageQrCode';
-import type { Order } from '../entities/Order';
+import PaymentDialog from '../components/PaymentDialog';
 import type { Voucher } from '../entities/Voucher';
 import useData from '../hooks/useData';
 import useNow from '../hooks/useNow';
 import useOrder from '../hooks/useOrder';
-import apiClient from '../services/api-client';
-import { getErrorMessage, getStatus } from '../services/errors';
 import { formatCents, formatDateTime } from '../utils/money';
 import { formatDuration } from '../utils/voucherState';
 
@@ -42,24 +40,7 @@ const OrderDetailPage = () => {
   const now = useNow();
   const { order, setOrder, error, isPending, isLoading } = useOrder(id);
   const { data: voucher } = useData<Voucher>(order ? `/vouchers/${order.voucher_id}` : null);
-  const [isPaying, setPaying] = useState(false);
-  const [payError, setPayError] = useState('');
-
-  const handlePay = () => {
-    setPaying(true);
-    setPayError('');
-    apiClient
-      .post<Order>(`/voucher-order/${id}/pay`)
-      .then((res) => setOrder(res.data))
-      .catch((err) =>
-        setPayError(
-          getStatus(err) === 402
-            ? 'Payment failed: insufficient balance. Nothing was charged and the order is still unpaid.'
-            : getErrorMessage(err)
-        )
-      )
-      .finally(() => setPaying(false));
-  };
+  const [isPaymentOpen, setPaymentOpen] = useState(false);
 
   if (isPending || (isLoading && !error))
     return (
@@ -138,9 +119,8 @@ const OrderDetailPage = () => {
                 The payment window has passed; the order will be cancelled on the next expiry sweep.
               </Alert>
             )}
-            {payError && <Alert severity="error" sx={{ mb: 2 }}>{payError}</Alert>}
-            <Button variant="contained" size="large" fullWidth onClick={handlePay} loading={isPaying}>
-              Pay {formatCents(order.pay_value)} with balance
+            <Button variant="contained" size="large" fullWidth onClick={() => setPaymentOpen(true)}>
+              Pay {formatCents(order.pay_value)}
             </Button>
           </>
         )}
@@ -157,6 +137,14 @@ const OrderDetailPage = () => {
         <Button component={Link} to="/orders" sx={{ mt: 2 }}>
           Back to my orders
         </Button>
+
+        <PaymentDialog
+          open={isPaymentOpen}
+          orderId={order.id}
+          amount={order.pay_value}
+          onClose={() => setPaymentOpen(false)}
+          onPaid={setOrder}
+        />
       </CardContent>
     </Card>
   );

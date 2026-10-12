@@ -22,7 +22,7 @@ const ShopCard = ({ shop, typeName }: Props) => {
   return (
     <Card sx={{ height: '100%' }}>
       <CardActionArea component={Link} to={`/shops/${shop.id}`} sx={{ height: '100%' }}>
-        <ShopCover id={shop.id} typeName={typeName} />
+        <ShopCover id={shop.id} typeName={typeName} images={shop.images} />
         <CardContent>
           <Typography variant="subtitle1" sx={{ fontWeight: 700 }} noWrap>
             {shop.name}

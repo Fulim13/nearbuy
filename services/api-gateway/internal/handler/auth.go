@@ -129,10 +129,15 @@ func (h *AuthHandler) login(c *echo.Context) error {
 		return grpcError(err)
 	}
 
+	role := resp.GetRole()
+	if role == "" {
+		role = "user"
+	}
 	u := session.User{
 		ID:       resp.GetUser().GetId(),
 		NickName: resp.GetUser().GetNickName(),
 		Icon:     resp.GetUser().GetIcon(),
+		Role:     role,
 	}
 	token, err := h.sessions.Create(ctx, u)
 	if err != nil {
@@ -140,7 +145,7 @@ func (h *AuthHandler) login(c *echo.Context) error {
 		return echo.NewHTTPError(http.StatusInternalServerError, "internal server error")
 	}
 
-	slog.Info("login", "user_id", u.ID, "created", resp.GetCreated())
+	slog.Info("login", "user_id", u.ID, "role", u.Role, "created", resp.GetCreated())
 	return c.JSON(http.StatusOK, loginResponse{Token: token, User: u})
 }
 

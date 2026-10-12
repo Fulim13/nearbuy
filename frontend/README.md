@@ -24,3 +24,18 @@ src/
   components/ NavBar, cards, forms, PrivateRoutes
   pages/      one per route (see routes.tsx)
 ```
+
+## Images
+
+Shop and profile images are plain static files served from `public/`, at the
+paths the seed data already stores:
+
+| Seeded value | Put the file at |
+|---|---|
+| `shop.images` = `/imgs/shops/1.jpg` … `/imgs/shops/14.jpg` | `public/imgs/shops/1.jpg` … `14.jpg` |
+| `app_user.icon` = `/icons/1.png` … `/icons/3.png` | `public/icons/1.png` … `3.png` |
+| admin icon `/icons/admin.png` | `public/icons/admin.png` |
+
+Missing files are fine: shops fall back to a coloured cover and avatars to the
+user's initial. Shops created in the UI can point at any image URL through the
+"Image URL(s)" field (the first comma-separated URL is the cover).

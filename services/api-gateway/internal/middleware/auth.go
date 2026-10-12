@@ -47,6 +47,7 @@ func Session(store *session.Store) echo.MiddlewareFunc {
 			c.Set(ctxSessionToken, token)
 
 			ctx := grpx.ContextWithUserID(c.Request().Context(), u.ID)
+			ctx = grpx.ContextWithUserRole(ctx, u.Role)
 			c.SetRequest(c.Request().WithContext(ctx))
 
 			return next(c)
@@ -59,6 +60,39 @@ func RequireAuth() echo.MiddlewareFunc {
 		return func(c *echo.Context) error {
 			if _, ok := SessionUser(c); !ok {
 				return echo.NewHTTPError(http.StatusUnauthorized, "authentication required")
+			}
+			return next(c)
+		}
+	}
+}
+
+// RequireAdmin guards the catalogue writes: shops and vouchers.
+func RequireAdmin() echo.MiddlewareFunc {
+	return func(next echo.HandlerFunc) echo.HandlerFunc {
+		return func(c *echo.Context) error {
+			u, ok := SessionUser(c)
+			if !ok {
+				return echo.NewHTTPError(http.StatusUnauthorized, "authentication required")
+			}
+			if !u.IsAdmin() {
+				return echo.NewHTTPError(http.StatusForbidden, "admin only")
+			}
+			return next(c)
+		}
+	}
+}
+
+// RequireCustomer keeps admins out of the shopper actions: grabbing, paying,
+// following. An admin account runs the catalogue; it does not shop.
+func RequireCustomer() echo.MiddlewareFunc {
+	return func(next echo.HandlerFunc) echo.HandlerFunc {
+		return func(c *echo.Context) error {
+			u, ok := SessionUser(c)
+			if !ok {
+				return echo.NewHTTPError(http.StatusUnauthorized, "authentication required")
+			}
+			if u.IsAdmin() {
+				return echo.NewHTTPError(http.StatusForbidden, "admins cannot do this")
 			}
 			return next(c)
 		}

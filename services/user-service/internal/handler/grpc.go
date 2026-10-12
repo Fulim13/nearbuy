@@ -60,6 +60,7 @@ func (h *GRPCHandler) GetOrCreateUserByPhone(ctx context.Context, in *user.GetOr
 	return &user.GetOrCreateUserByPhoneResponse{
 		User:    &user.PublicUser{Id: u.ID, NickName: u.NickName, Icon: u.Icon},
 		Created: created,
+		Role:    string(u.Role),
 	}, nil
 }
 

@@ -88,7 +88,7 @@ func (q *Queries) CountFollowing(ctx context.Context, userID int64) (int64, erro
 const createUser = `-- name: CreateUser :one
 INSERT INTO app_user (phone, nick_name)
 VALUES ($1, $2)
-RETURNING id, phone, password, nick_name, icon, city, introduce, fans, followee, gender, birthday, credits, level, balance, trading_balance, create_time, update_time
+RETURNING id, phone, password, nick_name, icon, city, introduce, fans, followee, gender, birthday, credits, level, balance, trading_balance, create_time, update_time, role
 `
 
 type CreateUserParams struct {
@@ -117,6 +117,7 @@ func (q *Queries) CreateUser(ctx context.Context, arg CreateUserParams) (AppUser
 		&i.TradingBalance,
 		&i.CreateTime,
 		&i.UpdateTime,
+		&i.Role,
 	)
 	return i, err
 }
@@ -125,7 +126,7 @@ const createUserByPhone = `-- name: CreateUserByPhone :one
 INSERT INTO app_user (phone, nick_name)
 VALUES ($1, $2)
 ON CONFLICT (phone) DO UPDATE SET phone = EXCLUDED.phone
-RETURNING id, phone, password, nick_name, icon, city, introduce, fans, followee, gender, birthday, credits, level, balance, trading_balance, create_time, update_time
+RETURNING id, phone, password, nick_name, icon, city, introduce, fans, followee, gender, birthday, credits, level, balance, trading_balance, create_time, update_time, role
 `
 
 type CreateUserByPhoneParams struct {
@@ -163,6 +164,7 @@ func (q *Queries) CreateUserByPhone(ctx context.Context, arg CreateUserByPhonePa
 		&i.TradingBalance,
 		&i.CreateTime,
 		&i.UpdateTime,
+		&i.Role,
 	)
 	return i, err
 }
@@ -190,7 +192,7 @@ func (q *Queries) Follow(ctx context.Context, arg FollowParams) (int64, error) {
 }
 
 const getUser = `-- name: GetUser :one
-SELECT id, phone, password, nick_name, icon, city, introduce, fans, followee, gender, birthday, credits, level, balance, trading_balance, create_time, update_time FROM app_user WHERE id = $1
+SELECT id, phone, password, nick_name, icon, city, introduce, fans, followee, gender, birthday, credits, level, balance, trading_balance, create_time, update_time, role FROM app_user WHERE id = $1
 `
 
 func (q *Queries) GetUser(ctx context.Context, id int64) (AppUser, error) {
@@ -214,12 +216,13 @@ func (q *Queries) GetUser(ctx context.Context, id int64) (AppUser, error) {
 		&i.TradingBalance,
 		&i.CreateTime,
 		&i.UpdateTime,
+		&i.Role,
 	)
 	return i, err
 }
 
 const getUserByPhone = `-- name: GetUserByPhone :one
-SELECT id, phone, password, nick_name, icon, city, introduce, fans, followee, gender, birthday, credits, level, balance, trading_balance, create_time, update_time FROM app_user WHERE phone = $1
+SELECT id, phone, password, nick_name, icon, city, introduce, fans, followee, gender, birthday, credits, level, balance, trading_balance, create_time, update_time, role FROM app_user WHERE phone = $1
 `
 
 func (q *Queries) GetUserByPhone(ctx context.Context, phone string) (AppUser, error) {
@@ -243,6 +246,7 @@ func (q *Queries) GetUserByPhone(ctx context.Context, phone string) (AppUser, er
 		&i.TradingBalance,
 		&i.CreateTime,
 		&i.UpdateTime,
+		&i.Role,
 	)
 	return i, err
 }

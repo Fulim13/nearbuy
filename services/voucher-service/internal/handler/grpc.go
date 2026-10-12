@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"github.com/Fulim13/nearbuy/gen/golang/v1/voucher"
+	"github.com/Fulim13/nearbuy/pkg/grpx"
 	"github.com/Fulim13/nearbuy/pkg/kafkax"
 	"github.com/Fulim13/nearbuy/services/voucher-service/internal/repository"
 	"github.com/Fulim13/nearbuy/services/voucher-service/internal/seckill"
@@ -57,6 +58,11 @@ func (h *GRPCHandler) ListVouchersByShop(ctx context.Context, in *voucher.ListVo
 }
 
 func (h *GRPCHandler) CreateVoucher(ctx context.Context, in *voucher.CreateVoucherRequest) (*voucher.CreateVoucherResponse, error) {
+	// The gateway already restricts this route to admins; checked again here so
+	// an in-cluster caller cannot skip the gateway and write the catalogue.
+	if !grpx.IsAdmin(ctx) {
+		return nil, status.Error(codes.PermissionDenied, "admin only")
+	}
 	if err := validateCreate(in); err != nil {
 		return nil, err
 	}
@@ -72,6 +78,11 @@ func (h *GRPCHandler) CreateVoucher(ctx context.Context, in *voucher.CreateVouch
 }
 
 func (h *GRPCHandler) CreateSeckillVoucher(ctx context.Context, in *voucher.CreateSeckillVoucherRequest) (*voucher.CreateVoucherResponse, error) {
+	// The gateway already restricts this route to admins; checked again here so
+	// an in-cluster caller cannot skip the gateway and write the catalogue.
+	if !grpx.IsAdmin(ctx) {
+		return nil, status.Error(codes.PermissionDenied, "admin only")
+	}
 	base := in.GetVoucher()
 	if err := validateCreate(base); err != nil {
 		return nil, err

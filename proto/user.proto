@@ -37,6 +37,9 @@ message GetOrCreateUserByPhoneRequest {
 message GetOrCreateUserByPhoneResponse {
 	PublicUser user = 1;
 	bool created = 2;
+	// "user" or "admin". Here and not on PublicUser: only the login path needs
+	// it, and PublicUser is served to anyone.
+	string role = 3;
 }
 
 // Follow and Unfollow share a message: both are (actor, target) and nothing else.

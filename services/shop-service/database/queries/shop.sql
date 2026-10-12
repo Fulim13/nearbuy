@@ -4,6 +4,16 @@ SELECT * FROM shop WHERE id = $1;
 -- name: ListShopTypes :many
 SELECT * FROM shop_type ORDER BY sort_order, id;
 
+-- name: ListShops :many
+-- The unfiltered browse list. Same ordering as the filtered ones so paging
+-- through "All" and then picking a category feels consistent.
+SELECT * FROM shop
+ORDER BY id
+LIMIT $1 OFFSET $2;
+
+-- name: CountShops :one
+SELECT count(*) FROM shop;
+
 -- name: ListShopsByType :many
 SELECT * FROM shop
 WHERE type_id = $1

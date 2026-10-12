@@ -65,13 +65,11 @@ func (h *ShopHandler) getShop(c *echo.Context) error {
 	return c.JSON(http.StatusOK, shopOut(resp.GetShop()))
 }
 
-// listShops takes either ?type_id= or ?name=. One endpoint, two filters
+// listShops takes ?type_id= or ?name=, or neither for every shop. One
+// endpoint, two optional filters.
 func (h *ShopHandler) listShops(c *echo.Context) error {
 	typeID, _ := strconv.ParseInt(c.QueryParam("type_id"), 10, 64)
 	name := c.QueryParam("name")
-	if typeID <= 0 && name == "" {
-		return echo.NewHTTPError(http.StatusBadRequest, "type_id or name is required")
-	}
 	page, _ := strconv.Atoi(c.QueryParamOr("page", "1"))
 	pageSize, _ := strconv.Atoi(c.QueryParamOr("page_size", "10"))
 

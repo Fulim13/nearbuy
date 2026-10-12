@@ -23,4 +23,8 @@ const useAuthStore = create<AuthStore>()(
   )
 );
 
+// Admins run the catalogue (shops, vouchers); they cannot grab, pay or follow.
+// The gateway enforces this; the UI only hides what would be refused.
+export const useIsAdmin = () => useAuthStore((s) => s.user?.role === 'admin');
+
 export default useAuthStore;

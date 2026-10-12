@@ -169,7 +169,7 @@ const LoginPage = () => {
           </form>
 
           <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mt: 3 }}>
-            Test users: Ahmad Faizal 0123456789 and Tan Mei Ling 0198765432 (RM 1,000 balance), Ravi Kumar 01123456780 (RM 0 balance).
+            Test users: Ahmad Faizal 0123456789 and Tan Mei Ling 0198765432 (RM 1,000 balance), Ravi Kumar 01123456780 (RM 0 balance). Admin: 0100000000.
           </Typography>
         </CardContent>
       </Card>

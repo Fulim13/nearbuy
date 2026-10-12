@@ -1,4 +1,5 @@
 import { Box } from '@mui/material';
+import { useState } from 'react';
 import ShopTypeIcon from './ShopTypeIcon';
 
 const palettes = [
@@ -13,13 +14,28 @@ const palettes = [
 interface Props {
   id: number;
   typeName?: string;
+  // shop.images: comma separated; the first one is the cover.
+  images?: string;
   height?: number;
 }
 
-// Shop images in the seed data point at files that do not exist, so every
-// shop gets a deterministic coloured cover instead.
-const ShopCover = ({ id, typeName, height = 120 }: Props) => {
+// Seeded paths like /imgs/shops/1.jpg are served from frontend/public. A shop
+// with no image, or whose file is missing, gets a coloured cover instead.
+const ShopCover = ({ id, typeName, images, height = 120 }: Props) => {
+  const src = images?.split(',')[0]?.trim();
+  const [failedSrc, setFailedSrc] = useState<string | null>(null);
   const [bg, fg] = palettes[id % palettes.length];
+
+  if (src && src !== failedSrc)
+    return (
+      <Box
+        component="img"
+        src={src}
+        alt=""
+        onError={() => setFailedSrc(src)}
+        sx={{ display: 'block', width: '100%', height, objectFit: 'cover' }}
+      />
+    );
 
   return (
     <Box

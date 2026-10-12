@@ -10,7 +10,7 @@ const SearchInput = () => {
   const handleSubmit = (event: FormEvent) => {
     event.preventDefault();
     const name = ref.current?.value.trim();
-    if (name) navigate(`/shops?name=${encodeURIComponent(name)}`);
+    if (name) navigate(`/?name=${encodeURIComponent(name)}`);
   };
 
   return (

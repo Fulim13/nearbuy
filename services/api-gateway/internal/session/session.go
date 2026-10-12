@@ -10,6 +10,7 @@ import (
 	"math/big"
 	"time"
 
+	"github.com/Fulim13/nearbuy/pkg/grpx"
 	"github.com/redis/go-redis/v9"
 )
 
@@ -27,7 +28,12 @@ type User struct {
 	ID       int64  `json:"id"`
 	NickName string `json:"nickname"`
 	Icon     string `json:"icon"`
+	// "user" or "admin". Sessions created before roles existed have "", which
+	// IsAdmin treats as a plain user.
+	Role string `json:"role"`
 }
+
+func (u User) IsAdmin() bool { return u.Role == grpx.RoleAdmin }
 
 type Store struct {
 	rdb *redis.Client

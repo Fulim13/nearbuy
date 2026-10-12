@@ -30,6 +30,17 @@ func (q *Queries) ClaimEvent(ctx context.Context, arg ClaimEventParams) (int64, 
 	return result.RowsAffected(), nil
 }
 
+const countShops = `-- name: CountShops :one
+SELECT count(*) FROM shop
+`
+
+func (q *Queries) CountShops(ctx context.Context) (int64, error) {
+	row := q.db.QueryRow(ctx, countShops)
+	var count int64
+	err := row.Scan(&count)
+	return count, err
+}
+
 const countShopsByType = `-- name: CountShopsByType :one
 SELECT count(*) FROM shop WHERE type_id = $1
 `
@@ -155,6 +166,55 @@ func (q *Queries) ListShopTypes(ctx context.Context) ([]ShopType, error) {
 			&i.Name,
 			&i.Icon,
 			&i.SortOrder,
+			&i.CreateTime,
+			&i.UpdateTime,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const listShops = `-- name: ListShops :many
+SELECT id, name, type_id, images, area, address, x, y, avg_price, sold, comments, score, open_hours, create_time, update_time FROM shop
+ORDER BY id
+LIMIT $1 OFFSET $2
+`
+
+type ListShopsParams struct {
+	Limit  int32 `json:"limit"`
+	Offset int32 `json:"offset"`
+}
+
+// The unfiltered browse list. Same ordering as the filtered ones so paging
+// through "All" and then picking a category feels consistent.
+func (q *Queries) ListShops(ctx context.Context, arg ListShopsParams) ([]Shop, error) {
+	rows, err := q.db.Query(ctx, listShops, arg.Limit, arg.Offset)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []Shop
+	for rows.Next() {
+		var i Shop
+		if err := rows.Scan(
+			&i.ID,
+			&i.Name,
+			&i.TypeID,
+			&i.Images,
+			&i.Area,
+			&i.Address,
+			&i.X,
+			&i.Y,
+			&i.AvgPrice,
+			&i.Sold,
+			&i.Comments,
+			&i.Score,
+			&i.OpenHours,
 			&i.CreateTime,
 			&i.UpdateTime,
 		); err != nil {

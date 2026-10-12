@@ -61,40 +61,46 @@ func Routes(e *echo.Echo, limiter *ratelimit.Limiter, sessions *session.Store, u
 	authed.GET("/user/me", auth.getMe)
 	authed.POST("/user/logout", auth.logout)
 
+	// Admin only: the catalogue (shops and vouchers) is written by admins.
+	admin := api.Group("", mw.RequireAdmin())
+
+	// Customers only: admins run the catalogue and do not shop or follow.
+	customer := api.Group("", mw.RequireCustomer())
+
 	// Public
 	api.GET("/shops/:id", shop.getShop)
 	api.GET("/shops", shop.listShops)
 	api.GET("/shop-types", shop.listShopTypes)
 
-	// Authenticated
-	authed.POST("/shops", shop.createShop)
-	authed.PATCH("/shops/:id", shop.updateShop)
+	// Admin.
+	admin.POST("/shops", shop.createShop)
+	admin.PATCH("/shops/:id", shop.updateShop)
 
 	// Public: anyone may see how many followers a user has.
 	api.GET("/users/:id/follow-counts", follow.followCounts)
 
 	// The actor is always the session user, never a path or body field.
-	authed.PUT("/users/:id/follow", follow.follow)
-	authed.DELETE("/users/:id/follow", follow.unfollow)
-	authed.GET("/users/:id/follow", follow.isFollowing)
-	authed.GET("/users/:id/common-following", follow.commonFollowing)
+	customer.PUT("/users/:id/follow", follow.follow)
+	customer.DELETE("/users/:id/follow", follow.unfollow)
+	customer.GET("/users/:id/follow", follow.isFollowing)
+	customer.GET("/users/:id/common-following", follow.commonFollowing)
 
 	// Public.
 	api.GET("/vouchers/:id", voucher.getVoucher)
 	api.GET("/shops/:shopId/vouchers", voucher.listByShop)
 
-	// Authenticated.
-	authed.POST("/vouchers", voucher.createVoucher)
-	authed.POST("/vouchers/seckill", voucher.createSeckillVoucher)
+	// Admin.
+	admin.POST("/vouchers", voucher.createVoucher)
+	admin.POST("/vouchers/seckill", voucher.createSeckillVoucher)
 
 	// The seckill itself. POST because it attempts to create something; the
 	// voucher id is in the path and the user comes from the session.
-	authed.POST("/voucher-order/seckill/:id", voucher.seckill)
+	customer.POST("/voucher-order/seckill/:id", voucher.seckill)
 
-	authed.GET("/voucher-order/:id", order.getOrder)
-	authed.GET("/voucher-orders", order.listMyOrders)
+	customer.GET("/voucher-order/:id", order.getOrder)
+	customer.GET("/voucher-orders", order.listMyOrders)
 
-	authed.POST("/voucher-order/:id/pay", order.pay)
+	customer.POST("/voucher-order/:id/pay", order.pay)
 }
 
 func ping(c *echo.Context) error {

@@ -20,13 +20,15 @@ import type { FollowCounts, User } from '../entities/User';
 import useData from '../hooks/useData';
 import apiClient from '../services/api-client';
 import { getErrorMessage } from '../services/errors';
-import useAuthStore from '../stores/authStore';
+import useAuthStore, { useIsAdmin } from '../stores/authStore';
 
 const UserPage = () => {
   const { id } = useParams();
   const me = useAuthStore((s) => s.user);
+  const isAdmin = useIsAdmin();
   const isMe = me?.id === Number(id);
-  const canFollow = !!me && !isMe;
+  // Admin accounts run the catalogue; the gateway refuses their follow calls.
+  const canFollow = !!me && !isMe && !isAdmin;
 
   const { data: user, error, isLoading } = useData<User>(`/user/${id}`);
   const { data: counts, setData: setCounts } = useData<FollowCounts>(`/users/${id}/follow-counts`);
@@ -66,7 +68,7 @@ const UserPage = () => {
     <Card sx={{ maxWidth: 560, mx: 'auto' }}>
       <CardContent sx={{ p: 4 }}>
         <Stack direction="row" spacing={2} sx={{ alignItems: 'center' }}>
-          <Avatar sx={{ width: 72, height: 72, bgcolor: 'primary.main', fontSize: 30 }}>
+          <Avatar src={user.icon || undefined} alt={user.nickname} sx={{ width: 72, height: 72, bgcolor: 'primary.main', fontSize: 30 }}>
             {user.nickname.charAt(0).toUpperCase()}
           </Avatar>
           <Box sx={{ flexGrow: 1 }}>
@@ -85,6 +87,9 @@ const UserPage = () => {
         </Stack>
 
         {isMe && <Alert severity="info" sx={{ mt: 2 }}>This is you.</Alert>}
+        {isAdmin && !isMe && (
+          <Alert severity="info" sx={{ mt: 2 }}>Admin accounts can't follow people.</Alert>
+        )}
         {!me && (
           <Alert severity="info" sx={{ mt: 2 }}>
             <Link to="/login" state={{ from: `/users/${id}` }}>Log in</Link> to follow {user.nickname}.
@@ -118,7 +123,9 @@ const UserPage = () => {
                 {common.map((u) => (
                   <ListItemButton key={u.id} component={Link} to={`/users/${u.id}`}>
                     <ListItemAvatar>
-                      <Avatar>{u.nickname.charAt(0).toUpperCase()}</Avatar>
+                      <Avatar src={u.icon || undefined} alt={u.nickname}>
+                        {u.nickname.charAt(0).toUpperCase()}
+                      </Avatar>
                     </ListItemAvatar>
                     <ListItemText primary={u.nickname} secondary={`User #${u.id}`} />
                   </ListItemButton>

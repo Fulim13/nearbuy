@@ -16,7 +16,7 @@ import type { Voucher } from '../entities/Voucher';
 import useNow from '../hooks/useNow';
 import apiClient from '../services/api-client';
 import { getErrorMessage } from '../services/errors';
-import useAuthStore from '../stores/authStore';
+import useAuthStore, { useIsAdmin } from '../stores/authStore';
 import { formatCents } from '../utils/money';
 import { formatDuration, getVoucherState } from '../utils/voucherState';
 
@@ -27,6 +27,7 @@ interface Props {
 const VoucherCard = ({ voucher }: Props) => {
   const now = useNow();
   const user = useAuthStore((s) => s.user);
+  const isAdmin = useIsAdmin();
   const navigate = useNavigate();
   const location = useLocation();
   const [isGrabbing, setGrabbing] = useState(false);
@@ -116,9 +117,15 @@ const VoucherCard = ({ voucher }: Props) => {
           )}
           {state.kind === 'live' && (
             <>
-              <Button variant="contained" onClick={handleGrab} loading={isGrabbing} startIcon={<BoltIcon />}>
-                Grab now
-              </Button>
+              {isAdmin ? (
+                <Button variant="outlined" disabled>
+                  Admins can't purchase
+                </Button>
+              ) : (
+                <Button variant="contained" onClick={handleGrab} loading={isGrabbing} startIcon={<BoltIcon />}>
+                  Grab now
+                </Button>
+              )}
               <Typography variant="body2" color="text.secondary">
                 {voucher.stock} left · ends in {formatDuration(state.msLeft)}
               </Typography>

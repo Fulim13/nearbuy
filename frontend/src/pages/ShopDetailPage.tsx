@@ -17,14 +17,14 @@ import {
   Typography,
 } from '@mui/material';
 import { useState } from 'react';
-import { Link, useNavigate, useParams } from 'react-router-dom';
+import { Link, useParams } from 'react-router-dom';
 import CreateVoucherDialog from '../components/CreateVoucherDialog';
 import ShopCover from '../components/ShopCover';
 import VoucherCard from '../components/VoucherCard';
 import useShop from '../hooks/useShop';
 import useShopTypes from '../hooks/useShopTypes';
 import useVouchers from '../hooks/useVouchers';
-import useAuthStore from '../stores/authStore';
+import { useIsAdmin } from '../stores/authStore';
 import { formatRinggit } from '../utils/money';
 
 const Stat = ({ label, value }: { label: string; value: string }) => (
@@ -38,8 +38,7 @@ const Stat = ({ label, value }: { label: string; value: string }) => (
 
 const ShopDetailPage = () => {
   const { id } = useParams();
-  const navigate = useNavigate();
-  const user = useAuthStore((s) => s.user);
+  const isAdmin = useIsAdmin();
   const [isDialogOpen, setDialogOpen] = useState(false);
 
   const { data: shop, error, isLoading } = useShop(id);
@@ -47,11 +46,6 @@ const ShopDetailPage = () => {
   const { data: vouchers, setData: setVouchers, error: voucherError } = useVouchers(id);
 
   const typeName = types?.find((t) => t.id === shop?.type_id)?.name;
-
-  const openVoucherDialog = () => {
-    if (!user) navigate('/login', { state: { from: `/shops/${id}` } });
-    else setDialogOpen(true);
-  };
 
   if (isLoading || (!shop && !error))
     return <Skeleton variant="rounded" height={320} />;
@@ -63,14 +57,14 @@ const ShopDetailPage = () => {
         <MuiLink component={Link} to="/" underline="hover" color="inherit">
           Explore
         </MuiLink>
-        <MuiLink component={Link} to={`/shops?type_id=${shop.type_id}`} underline="hover" color="inherit">
+        <MuiLink component={Link} to={`/?type_id=${shop.type_id}`} underline="hover" color="inherit">
           {typeName ?? 'Shops'}
         </MuiLink>
         <Typography color="text.primary">{shop.name}</Typography>
       </Breadcrumbs>
 
       <Card sx={{ mb: 4 }}>
-        <ShopCover id={shop.id} typeName={typeName} height={180} />
+        <ShopCover id={shop.id} typeName={typeName} images={shop.images} height={180} />
         <Box sx={{ p: 3 }}>
           <Stack direction="row" sx={{ justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: 2 }}>
             <Box>
@@ -96,7 +90,7 @@ const ShopDetailPage = () => {
                 ({shop.y.toFixed(5)}, {shop.x.toFixed(5)})
               </Typography>
             </Box>
-            {user && (
+            {isAdmin && (
               <Button component={Link} to={`/shops/${shop.id}/edit`} startIcon={<EditIcon />} variant="outlined">
                 Edit shop
               </Button>
@@ -125,14 +119,20 @@ const ShopDetailPage = () => {
 
       <Stack direction="row" sx={{ justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
         <Typography variant="h5">Vouchers</Typography>
-        <Button variant="contained" startIcon={<AddIcon />} onClick={openVoucherDialog}>
-          Add voucher
-        </Button>
+        {isAdmin && (
+          <Button variant="contained" startIcon={<AddIcon />} onClick={() => setDialogOpen(true)}>
+            Add voucher
+          </Button>
+        )}
       </Stack>
 
       {voucherError && <Alert severity="error">{voucherError}</Alert>}
       {vouchers?.length === 0 && (
-        <Alert severity="info">This shop has no vouchers yet. Add a flash sale to try the seckill flow.</Alert>
+        <Alert severity="info">
+          {isAdmin
+            ? 'This shop has no vouchers yet. Add a flash sale to try the seckill flow.'
+            : 'This shop has no vouchers yet. Check back soon.'}
+        </Alert>
       )}
       <Stack spacing={2}>
         {vouchers?.map((voucher) => (
@@ -140,12 +140,14 @@ const ShopDetailPage = () => {
         ))}
       </Stack>
 
-      <CreateVoucherDialog
-        shopId={shop.id}
-        open={isDialogOpen}
-        onClose={() => setDialogOpen(false)}
-        onCreated={(voucher) => setVouchers([...(vouchers ?? []), voucher])}
-      />
+      {isAdmin && (
+        <CreateVoucherDialog
+          shopId={shop.id}
+          open={isDialogOpen}
+          onClose={() => setDialogOpen(false)}
+          onCreated={(voucher) => setVouchers([...(vouchers ?? []), voucher])}
+        />
+      )}
     </>
   );
 };

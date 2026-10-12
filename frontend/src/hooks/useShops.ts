@@ -8,11 +8,10 @@ export interface ShopQuery {
   pageSize: number;
 }
 
-const useShops = (query: ShopQuery) => {
-  const hasFilter = !!query.typeId || !!query.name;
-
-  return useData<ShopList>(
-    hasFilter ? '/shops' : null,
+// No filter lists every shop; type_id or name narrows it.
+const useShops = (query: ShopQuery) =>
+  useData<ShopList>(
+    '/shops',
     {
       params: {
         type_id: query.typeId || undefined,
@@ -23,6 +22,5 @@ const useShops = (query: ShopQuery) => {
     },
     [query.typeId, query.name, query.page, query.pageSize]
   );
-};
 
 export default useShops;

@@ -6,6 +6,7 @@ import (
 	"log/slog"
 
 	"github.com/Fulim13/nearbuy/gen/golang/v1/shop"
+	"github.com/Fulim13/nearbuy/pkg/grpx"
 	"github.com/Fulim13/nearbuy/services/shop-service/internal/repository"
 	"github.com/Fulim13/nearbuy/services/shop-service/internal/service"
 	"google.golang.org/grpc"
@@ -56,7 +57,13 @@ func (h *GRPCHandler) ListShops(ctx context.Context, in *shop.ListShopsRequest) 
 		return &shop.ListShopsResponse{Shops: toPBs(shops)}, nil
 
 	default:
-		return nil, status.Error(codes.InvalidArgument, "type_id or name is required")
+		// No filter: every shop, paged.
+		shops, total, err := h.service.ListShops(ctx, in.GetPage(), in.GetPageSize())
+		if err != nil {
+			slog.Error("list shops", "error", err)
+			return nil, status.Error(codes.Internal, "internal error")
+		}
+		return &shop.ListShopsResponse{Shops: toPBs(shops), Total: total}, nil
 	}
 }
 
@@ -76,6 +83,11 @@ func (h *GRPCHandler) ListShopTypes(ctx context.Context, _ *shop.ListShopTypesRe
 }
 
 func (h *GRPCHandler) CreateShop(ctx context.Context, in *shop.CreateShopRequest) (*shop.CreateShopResponse, error) {
+	// The gateway already restricts this route to admins; checked again here so
+	// an in-cluster caller cannot skip the gateway and write the catalogue.
+	if !grpx.IsAdmin(ctx) {
+		return nil, status.Error(codes.PermissionDenied, "admin only")
+	}
 	if in.GetName() == "" || in.GetAddress() == "" || in.GetTypeId() <= 0 {
 		return nil, status.Error(codes.InvalidArgument, "name, address and type_id are required")
 	}
@@ -102,6 +114,11 @@ func (h *GRPCHandler) CreateShop(ctx context.Context, in *shop.CreateShopRequest
 // gives narg the same *string / *int64 -- so "absent means leave it alone"
 // survives from the wire to the COALESCE with no translation layer.
 func (h *GRPCHandler) UpdateShop(ctx context.Context, in *shop.UpdateShopRequest) (*shop.UpdateShopResponse, error) {
+	// The gateway already restricts this route to admins; checked again here so
+	// an in-cluster caller cannot skip the gateway and write the catalogue.
+	if !grpx.IsAdmin(ctx) {
+		return nil, status.Error(codes.PermissionDenied, "admin only")
+	}
 	if in.GetId() <= 0 {
 		return nil, status.Error(codes.InvalidArgument, "id must be positive")
 	}

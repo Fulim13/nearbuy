@@ -4,6 +4,7 @@ import {
   Avatar,
   Box,
   Button,
+  Chip,
   Container,
   Menu,
   MenuItem,
@@ -13,7 +14,7 @@ import {
 import { useState } from 'react';
 import { Link, NavLink, useNavigate } from 'react-router-dom';
 import apiClient from '../services/api-client';
-import useAuthStore from '../stores/authStore';
+import useAuthStore, { useIsAdmin } from '../stores/authStore';
 import SearchInput from './SearchInput';
 
 const navLinkSx = {
@@ -24,6 +25,7 @@ const navLinkSx = {
 
 const NavBar = () => {
   const { user, logout } = useAuthStore();
+  const isAdmin = useIsAdmin();
   const navigate = useNavigate();
   const [anchor, setAnchor] = useState<HTMLElement | null>(null);
 
@@ -45,7 +47,8 @@ const NavBar = () => {
   };
 
   return (
-    <AppBar position="sticky" color="primary">
+    // Admins get a navy header so it is obvious which kind of session this is.
+    <AppBar position="sticky" sx={{ bgcolor: isAdmin ? 'secondary.main' : 'primary.main' }}>
       <Container maxWidth="lg">
         <Toolbar disableGutters sx={{ gap: 2, flexWrap: 'wrap', py: 1 }}>
           <Box
@@ -57,6 +60,13 @@ const NavBar = () => {
             <Typography variant="h6" sx={{ fontWeight: 800 }}>
               NearBuy
             </Typography>
+            {isAdmin && (
+              <Chip
+                label="ADMIN"
+                size="small"
+                sx={{ bgcolor: 'primary.main', color: 'white', fontWeight: 800, letterSpacing: '0.06em' }}
+              />
+            )}
           </Box>
 
           <SearchInput />
@@ -68,7 +78,7 @@ const NavBar = () => {
             <Button component={NavLink} to="/users" sx={navLinkSx}>
               People
             </Button>
-            {user && (
+            {user && !isAdmin && (
               <Button component={NavLink} to="/orders" sx={navLinkSx}>
                 My Orders
               </Button>
@@ -80,7 +90,11 @@ const NavBar = () => {
                   color="inherit"
                   onClick={(e) => setAnchor(e.currentTarget)}
                   startIcon={
-                    <Avatar sx={{ width: 26, height: 26, bgcolor: 'secondary.main', fontSize: 13 }}>
+                    <Avatar
+                      src={user.icon || undefined}
+                      alt={user.nickname}
+                      sx={{ width: 26, height: 26, bgcolor: isAdmin ? 'primary.main' : 'secondary.main', fontSize: 13 }}
+                    >
                       {user.nickname.charAt(0).toUpperCase()}
                     </Avatar>
                   }
@@ -96,14 +110,16 @@ const NavBar = () => {
                   >
                     My profile (#{user.id})
                   </MenuItem>
-                  <MenuItem
-                    onClick={() => {
-                      setAnchor(null);
-                      navigate('/shops/new');
-                    }}
-                  >
-                    Open a shop
-                  </MenuItem>
+                  {isAdmin && (
+                    <MenuItem
+                      onClick={() => {
+                        setAnchor(null);
+                        navigate('/shops/new');
+                      }}
+                    >
+                      Open a shop
+                    </MenuItem>
+                  )}
                   <MenuItem onClick={handleLogout}>Log out</MenuItem>
                 </Menu>
               </>

@@ -222,9 +222,12 @@ func (x *GetOrCreateUserByPhoneRequest) GetDefaultNickName() string {
 }
 
 type GetOrCreateUserByPhoneResponse struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	User          *PublicUser            `protobuf:"bytes,1,opt,name=user,proto3" json:"user,omitempty"`
-	Created       bool                   `protobuf:"varint,2,opt,name=created,proto3" json:"created,omitempty"`
+	state   protoimpl.MessageState `protogen:"open.v1"`
+	User    *PublicUser            `protobuf:"bytes,1,opt,name=user,proto3" json:"user,omitempty"`
+	Created bool                   `protobuf:"varint,2,opt,name=created,proto3" json:"created,omitempty"`
+	// "user" or "admin". Here and not on PublicUser: only the login path needs
+	// it, and PublicUser is served to anyone.
+	Role          string `protobuf:"bytes,3,opt,name=role,proto3" json:"role,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -271,6 +274,13 @@ func (x *GetOrCreateUserByPhoneResponse) GetCreated() bool {
 		return x.Created
 	}
 	return false
+}
+
+func (x *GetOrCreateUserByPhoneResponse) GetRole() string {
+	if x != nil {
+		return x.Role
+	}
+	return ""
 }
 
 // Follow and Unfollow share a message: both are (actor, target) and nothing else.
@@ -615,10 +625,11 @@ const file_user_proto_rawDesc = "" +
 	"\x04user\x18\x01 \x01(\v2\x13.user.v1.PublicUserR\x04user\"a\n" +
 	"\x1dGetOrCreateUserByPhoneRequest\x12\x14\n" +
 	"\x05phone\x18\x01 \x01(\tR\x05phone\x12*\n" +
-	"\x11default_nick_name\x18\x02 \x01(\tR\x0fdefaultNickName\"c\n" +
+	"\x11default_nick_name\x18\x02 \x01(\tR\x0fdefaultNickName\"w\n" +
 	"\x1eGetOrCreateUserByPhoneResponse\x12'\n" +
 	"\x04user\x18\x01 \x01(\v2\x13.user.v1.PublicUserR\x04user\x12\x18\n" +
-	"\acreated\x18\x02 \x01(\bR\acreated\"E\n" +
+	"\acreated\x18\x02 \x01(\bR\acreated\x12\x12\n" +
+	"\x04role\x18\x03 \x01(\tR\x04role\"E\n" +
 	"\rFollowRequest\x12\x17\n" +
 	"\auser_id\x18\x01 \x01(\x03R\x06userId\x12\x1b\n" +
 	"\ttarget_id\x18\x02 \x01(\x03R\btargetId\"\x10\n" +
