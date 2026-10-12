@@ -207,6 +207,27 @@ func (q *Queries) InsertSeckillStock(ctx context.Context, arg InsertSeckillStock
 	return err
 }
 
+const insertStockRestore = `-- name: InsertStockRestore :execrows
+INSERT INTO stock_restore (order_id, voucher_id)
+VALUES ($1, $2)
+ON CONFLICT (order_id) DO NOTHING
+`
+
+type InsertStockRestoreParams struct {
+	OrderID   int64 `json:"order_id"`
+	VoucherID int64 `json:"voucher_id"`
+}
+
+// The idempotency key for RestoreStock: 1 row affected the first time an order's
+// stock is restored, 0 on every retry after that.
+func (q *Queries) InsertStockRestore(ctx context.Context, arg InsertStockRestoreParams) (int64, error) {
+	result, err := q.db.Exec(ctx, insertStockRestore, arg.OrderID, arg.VoucherID)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected(), nil
+}
+
 const listSeckillVouchers = `-- name: ListSeckillVouchers :many
 SELECT sv.voucher_id, sv.stock
 FROM seckill_voucher sv

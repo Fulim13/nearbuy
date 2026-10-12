@@ -115,6 +115,12 @@ type SeckillVoucher struct {
 	UpdateTime time.Time `json:"update_time"`
 }
 
+type StockRestore struct {
+	OrderID    int64     `json:"order_id"`
+	VoucherID  int64     `json:"voucher_id"`
+	CreateTime time.Time `json:"create_time"`
+}
+
 type Voucher struct {
 	ID          int64         `json:"id"`
 	ShopID      int64         `json:"shop_id"`

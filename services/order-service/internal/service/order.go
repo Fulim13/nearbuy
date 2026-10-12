@@ -116,28 +116,6 @@ func (SQLStore) UnpayOrder(tx *sql.Tx, orderID int64) error {
 	return nil
 }
 
-// CancelOrder is S3's first branch. Same WHERE-clause guard, different reason:
-// here zero rows means the user paid between the sweep's SELECT and this UPDATE.
-func (SQLStore) CancelOrder(tx *sql.Tx, orderID int64) error {
-	res, err := tx.Exec(`
-		UPDATE voucher_order
-		SET status = 'cancelled'
-		WHERE id = $1 AND status = 'unpaid'`, orderID)
-	if err != nil {
-		return fmt.Errorf("cancel order: %w", err)
-	}
-	return oneRow(res, branch.ErrNotCancellable, "cancel order")
-}
-
-func (SQLStore) UncancelOrder(tx *sql.Tx, orderID int64) error {
-	_, err := tx.Exec(`
-		UPDATE voucher_order SET status = 'unpaid' WHERE id = $1`, orderID)
-	if err != nil {
-		return fmt.Errorf("uncancel order: %w", err)
-	}
-	return nil
-}
-
 // oneRow turns "the WHERE clause matched nothing" into a named error the branch
 // can map to dtmcli.ErrFailure, and keeps a genuine driver error transient.
 func oneRow(res sql.Result, mismatch error, what string) error {

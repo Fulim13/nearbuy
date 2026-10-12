@@ -16,6 +16,12 @@ service Voucher {
   // Seckill is the admission. It returns an order id for an ADMITTED caller and
   // a reason code for everyone else -- no order row exists yet either way.
   rpc Seckill(SeckillRequest) returns (SeckillResponse);
+
+  // RestoreStock gives back the stock an expired order was holding, in Postgres
+  // and in Redis. Called by order-service's expiry job after it has cancelled the
+  // order. Idempotent per order_id: the job retries until it succeeds, and only
+  // the first call for an order changes anything.
+  rpc RestoreStock(RestoreStockRequest) returns (RestoreStockResponse);
 }
 
 // VoucherInfo, not Voucher: a message cannot share its name with the service in
@@ -92,6 +98,18 @@ message SeckillResponse {
 	// The machine-readable code, so the gateway can pick an HTTP status without
 	// string-matching the reason.
 	SeckillCode code = 4;
+}
+
+message RestoreStockRequest {
+	int64 order_id   = 1;
+	int64 voucher_id = 2;
+	int64 user_id    = 3;  // released from the voucher's one-per-user set
+}
+
+message RestoreStockResponse {
+	// false when this order's stock had already been restored: a retry, and not
+	// an error.
+	bool restored = 1;
 }
 
 enum SeckillCode {

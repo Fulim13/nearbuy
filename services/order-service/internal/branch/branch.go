@@ -4,12 +4,13 @@
 // alongside the gRPC one (:9000). DTM calls them by URL, so the barrier key
 // arrives in the query string and a stuck transaction can be curl'd by hand.
 //
-// order-service appears in all three Sagas, which is why this file has six
+// order-service appears in both Sagas, which is why this file has four
 // endpoints rather than two:
 //
 //	S1  create_order  / create_order_comp   insert the order   (lesson 14)
 //	S2  pay_order     / pay_order_comp      unpaid -> paid
-//	S3  cancel_order  / cancel_order_comp   unpaid -> cancelled
+//
+// Expiring an unpaid order is not a Saga: see internal/scheduler.
 package branch
 
 import (
@@ -44,19 +45,9 @@ type PayOrderReq struct {
 	Amount  int64 `json:"amount"`
 }
 
-// CancelOrderReq is S3's first branch.
-type CancelOrderReq struct {
-	OrderID   int64 `json:"order_id"`
-	UserID    int64 `json:"user_id"`
-	VoucherID int64 `json:"voucher_id"`
-}
-
-// ErrNotPayable and ErrNotCancellable are the two conditions that are NOT
-// transient: the order has already left 'unpaid', so no retry will help.
-var (
-	ErrNotPayable     = errors.New("order is not payable")
-	ErrNotCancellable = errors.New("order is not cancellable")
-)
+// ErrNotPayable is the condition that is NOT transient: the order has already
+// left 'unpaid', so no retry will help.
+var ErrNotPayable = errors.New("order is not payable")
 
 // Store is the subset of order-service's data layer the branches need, in
 // database/sql terms because that is what the barrier speaks.
@@ -66,9 +57,6 @@ type Store interface {
 
 	PayOrder(tx *sql.Tx, orderID int64) error
 	UnpayOrder(tx *sql.Tx, orderID int64) error
-
-	CancelOrder(tx *sql.Tx, orderID int64) error
-	UncancelOrder(tx *sql.Tx, orderID int64) error
 }
 
 type Handler struct {
@@ -89,9 +77,6 @@ func Register(e *echo.Echo, h *Handler) {
 
 	g.POST("/pay_order", dtmx.WrapBranch(h.payOrder))
 	g.POST("/pay_order_comp", dtmx.WrapBranch(h.payOrderComp))
-
-	g.POST("/cancel_order", dtmx.WrapBranch(h.cancelOrder))
-	g.POST("/cancel_order_comp", dtmx.WrapBranch(h.cancelOrderComp))
 }
 
 // run is the body every branch shares: build the barrier, then do the work
@@ -196,44 +181,6 @@ func (h *Handler) payOrderComp(c *echo.Context) any {
 	return run(h, c, func(tx *sql.Tx, r PayOrderReq) error {
 		if err := h.store.UnpayOrder(tx, r.OrderID); err != nil {
 			slog.Error("pay order compensation failed, will retry",
-				"order_id", r.OrderID, "error", err)
-			return dtmcli.ErrOngoing
-		}
-		return nil
-	})
-}
-
-// ---------------------------------------------------------------- S3
-
-// cancelOrder is S3's FIRST branch, and the only place S3 is allowed to fail.
-//
-// WHERE status = 'unpaid' again. Zero rows means the sweep selected this order
-// and the user paid it in the seconds before the branch ran -- a race the sweep
-// cannot avoid and must not lose. ErrFailure stops S3 before branch 2 gives the
-// stock back on an order that is now paid.
-//
-// Because this is the first branch, unwinding it is an EMPTY compensation: the
-// barrier sees no action key, skips the body, and nothing is touched.
-func (h *Handler) cancelOrder(c *echo.Context) any {
-	return run(h, c, func(tx *sql.Tx, r CancelOrderReq) error {
-		err := h.store.CancelOrder(tx, r.OrderID)
-		switch {
-		case err == nil:
-			return nil
-		case errors.Is(err, ErrNotCancellable):
-			slog.Info("expiry skipped, order is no longer unpaid", "order_id", r.OrderID)
-			return dtmcli.ErrFailure
-		default:
-			slog.Error("cancel order branch failed", "order_id", r.OrderID, "error", err)
-			return dtmcli.ErrOngoing
-		}
-	})
-}
-
-func (h *Handler) cancelOrderComp(c *echo.Context) any {
-	return run(h, c, func(tx *sql.Tx, r CancelOrderReq) error {
-		if err := h.store.UncancelOrder(tx, r.OrderID); err != nil {
-			slog.Error("cancel order compensation failed, will retry",
 				"order_id", r.OrderID, "error", err)
 			return dtmcli.ErrOngoing
 		}

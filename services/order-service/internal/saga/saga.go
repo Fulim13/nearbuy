@@ -1,8 +1,9 @@
 // Package saga builds the global transactions order-service starts.
 //
-// S1 lives in internal/consumer because Kafka starts it. S2 and S3 are here,
-// because the things that start them -- an RPC and a scheduler -- have nothing
-// else in common.
+// S1 lives in internal/consumer because Kafka starts it. S2 is here, started by
+// the PayOrder RPC. Expiring unpaid orders used to be a third Saga (S3); it is
+// now a plain local cancel plus an idempotent RestoreStock call, in
+// internal/scheduler, because nothing after its first step can fail.
 package saga
 
 import (
@@ -22,7 +23,7 @@ type Endpoints struct {
 	UserBase    string // http://user-service:8000/branch
 }
 
-// RetryInterval is the floor DTM enforces. Named so the three Sagas cannot drift apart by accident.
+// RetryInterval is the floor DTM enforces. Named so the Sagas cannot drift apart by accident.
 const RetryInterval = 10
 
 // ErrRolledBack means the Saga RAN and unwound: every branch that committed has
@@ -102,49 +103,6 @@ func SubmitPay(ctx context.Context, e Endpoints, orderID, userID, amount int64) 
 
 	if err := saga.Submit(); err != nil {
 		return classify(ctx, e.DTMServer, PayGID(orderID), err)
-	}
-	return nil
-}
-
-// ---------------------------------------------------------------- S3, expire
-
-func ExpireGID(orderID int64) string { return fmt.Sprintf("expire-%d", orderID) }
-
-// SubmitExpire runs S3: cancel the order, then give the stock back in Postgres
-// AND Redis.
-//
-// Forward-only in the sense that matters: no branch after the first can fail,
-// so nothing after the first can be unwound. The first CAN fail -- the order
-// stopped being 'unpaid' while the sweep was deciding -- and unwinding the
-// first branch of a Saga is an empty compensation, which the barrier handles
-// without the branch knowing.
-//
-// WaitResult is FALSE. The sweeper submits a batch of these; blocking on each
-// would make one slow Saga stall the whole tick, and nothing is waiting for the
-// answer.
-func SubmitExpire(ctx context.Context, e Endpoints, orderID, userID, voucherID int64) error {
-	gid := ExpireGID(orderID)
-	payload := map[string]any{
-		"order_id": orderID, "user_id": userID, "voucher_id": voucherID,
-	}
-
-	saga := dtmcli.NewSaga(e.DTMServer, gid).
-		Add(e.OrderBase+"/cancel_order", e.OrderBase+"/cancel_order_comp", payload).
-		Add(e.VoucherBase+"/restore_for_expiry", e.VoucherBase+"/restore_for_expiry_comp", payload)
-
-	saga.RetryInterval = RetryInterval
-
-	if err := saga.Submit(); err != nil {
-		// The sweeper re-selects any order still 'unpaid' on its next tick, so a
-		// gid DTM already knows is the NORMAL case, not an error -- the previous
-		// S3 is still working through its retries, or finished.
-		//
-		// ErrRolledBack is normal here too: it means cancel_order found the
-		// order no longer 'unpaid' because the user paid it. Nothing to report.
-		if cerr := classify(ctx, e.DTMServer, gid, err); cerr == nil || errors.Is(cerr, ErrRolledBack) {
-			return nil
-		}
-		return err
 	}
 	return nil
 }

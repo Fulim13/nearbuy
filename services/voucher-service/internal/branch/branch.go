@@ -1,11 +1,12 @@
 // Package branch holds voucher-service's DTM Saga branch endpoints.
 //
-//	S1  deduct_stock        / deduct_stock_comp         stock - 1
-//	S3  restore_for_expiry  / restore_for_expiry_comp   stock + 1, both stores
+//	S1  deduct_stock  / deduct_stock_comp  stock - 1
+//
+// Expired orders give their stock back through the RestoreStock gRPC call, not
+// a Saga: see internal/service.VoucherService.RestoreStock.
 package branch
 
 import (
-	"context"
 	"database/sql"
 	"encoding/json"
 	"errors"
@@ -26,34 +27,18 @@ type DeductStockReq struct {
 	Qty       int32 `json:"qty"`
 }
 
-// ExpiryReq is Saga S3's second branch: give one unit of stock back, in BOTH
-// stores. order_id is carried for the log, since this service owns no orders.
-type ExpiryReq struct {
-	VoucherID int64 `json:"voucher_id"`
-	UserID    int64 `json:"user_id"`
-	OrderID   int64 `json:"order_id"`
-}
-
 type Store interface {
 	DeductStock(tx *sql.Tx, voucherID int64, qty int32) error
 	RestoreStock(tx *sql.Tx, voucherID int64, qty int32) error
 }
 
-// Releaser is the Redis half of the expiry restore, injected as an interface so
-// this package does not import internal/seckill. Implemented by
-// *seckill.Admitter.
-type Releaser interface {
-	Release(ctx context.Context, voucherID, userID int64) (bool, error)
-}
-
 type Handler struct {
-	db       *sql.DB
-	store    Store
-	releaser Releaser
+	db    *sql.DB
+	store Store
 }
 
-func New(db *sql.DB, store Store, releaser Releaser) *Handler {
-	return &Handler{db: db, store: store, releaser: releaser}
+func New(db *sql.DB, store Store) *Handler {
+	return &Handler{db: db, store: store}
 }
 
 func Register(e *echo.Echo, h *Handler) {
@@ -61,13 +46,10 @@ func Register(e *echo.Echo, h *Handler) {
 
 	g.POST("/deduct_stock", dtmx.WrapBranch(h.deductStock))
 	g.POST("/deduct_stock_comp", dtmx.WrapBranch(h.deductStockComp))
-
-	g.POST("/restore_for_expiry", dtmx.WrapBranch(h.restoreForExpiry))
-	g.POST("/restore_for_expiry_comp", dtmx.WrapBranch(h.restoreForExpiryComp))
 }
 
-// run is generic for the same reason order-service's is: two Sagas, two payload
-// types, and Go does not allow type parameters on methods.
+// run is generic so another Saga's payload type can reuse it; Go does not allow
+// type parameters on methods.
 func run[T any](h *Handler, c *echo.Context, busi func(tx *sql.Tx, r T) error) any {
 	bb, err := dtmx.BarrierFromEcho(c)
 	if err != nil {
@@ -133,84 +115,6 @@ func (h *Handler) deductStockComp(c *echo.Context) any {
 				"voucher_id", r.VoucherID, "error", err)
 			return dtmcli.ErrOngoing
 		}
-		return nil
-	})
-}
-
-// ---------------------------------------------------------------- S3
-
-// restoreForExpiry is the only branch in the project that writes to two
-// different STORES, and the order inside it is the whole point.
-//
-//  1. Postgres  stock + 1     -- inside the barrier's transaction
-//  2. Redis     release.lua   -- after the SQL, before the commit
-//
-// Redis is not transactional with Postgres and never can be. Two separate
-// properties are what make this safe:
-//
-//   - Redis LAST. If release.lua fails, returning the error rolls the
-//     transaction back -- barrier row and stock increment together -- and DTM
-//     retries the whole branch. Had Redis gone first, a Postgres failure would
-//     leave Redis ahead with nothing recording that it happened.
-//   - release.lua is IDEMPOTENT. The remaining window is "Redis succeeded,
-//     COMMIT failed": the barrier row is gone with the rollback, so the retry
-//     runs the body again. A bare SREM + INCRBY would double the Redis stock
-//     there. release.lua checks SISMEMBER first, so the second call returns 0
-//     and changes nothing.
-//
-// That second point is why lesson 13 wrote release.lua with a membership check
-// instead of two bare commands. It did not matter then. It matters here.
-func (h *Handler) restoreForExpiry(c *echo.Context) any {
-	return run(h, c, func(tx *sql.Tx, r ExpiryReq) error {
-		if err := h.store.RestoreStock(tx, r.VoucherID, 1); err != nil {
-			// Even ErrNotSeckill is ErrOngoing here. S3 is a cancellation and a
-			// cancellation is not allowed to give up: if this voucher's row is
-			// genuinely gone, the right outcome is a Saga a human can see in
-			// trans_global, not a silent abandonment.
-			slog.Error("expiry stock restore failed, will retry",
-				"order_id", r.OrderID, "voucher_id", r.VoucherID, "error", err)
-			return dtmcli.ErrOngoing
-		}
-
-		// Why S3 must reach Redis at all: returning the Postgres stock while
-		// leaving the user in seckill:order:{vid} means they can NEVER buy this
-		// voucher again -- admit.lua's SISMEMBER check rejects them forever --
-		// while the two stock counts diverge silently. A compensation is only
-		// complete if it covers every store the forward path touched.
-		released, err := h.releaser.Release(c.Request().Context(), r.VoucherID, r.UserID)
-		if err != nil {
-			slog.Error("expiry redis release failed, rolling back and retrying",
-				"order_id", r.OrderID, "voucher_id", r.VoucherID, "error", err)
-			return dtmcli.ErrOngoing
-		}
-		if released {
-			slog.Info("expiry released the admission",
-				"order_id", r.OrderID, "voucher_id", r.VoucherID, "user_id", r.UserID)
-		} else {
-			// Not an error. The user was not in seckill:order:{vid} -- the key
-			// was flushed, or a previous attempt of this branch already
-			// released. Postgres is authoritative either way.
-			slog.Warn("expiry found no admission to release",
-				"order_id", r.OrderID, "voucher_id", r.VoucherID, "user_id", r.UserID)
-		}
-		return nil
-	})
-}
-
-// restoreForExpiryComp is UNREACHABLE by design, and exists anyway.
-//
-// S3 has exactly one failure point -- cancel_order, its FIRST branch -- so
-// nothing after it can trigger an unwind. DTM still wants a URL per branch, and
-// an endpoint that genuinely un-restored the stock would be code that can only
-// ever be wrong if it ran: the order is cancelled by then, so taking the stock
-// back would strand it.
-//
-// So it succeeds and says so loudly. Leaving the stock restored errs toward the
-// user being able to buy again, which is the right direction to be wrong in.
-func (h *Handler) restoreForExpiryComp(c *echo.Context) any {
-	return run(h, c, func(tx *sql.Tx, r ExpiryReq) error {
-		slog.Error("S3 compensated restore_for_expiry; this should be unreachable",
-			"order_id", r.OrderID, "voucher_id", r.VoucherID, "user_id", r.UserID)
 		return nil
 	})
 }

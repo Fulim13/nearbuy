@@ -110,16 +110,17 @@ type DtmBarrierBarrier struct {
 }
 
 type VoucherOrder struct {
-	ID         int64       `json:"id"`
-	UserID     int64       `json:"user_id"`
-	VoucherID  int64       `json:"voucher_id"`
-	PayValue   int64       `json:"pay_value"`
-	PayType    PayType     `json:"pay_type"`
-	Status     OrderStatus `json:"status"`
-	CreateTime time.Time   `json:"create_time"`
-	PayTime    *time.Time  `json:"pay_time"`
-	UseTime    *time.Time  `json:"use_time"`
-	RefundTime *time.Time  `json:"refund_time"`
-	UpdateTime time.Time   `json:"update_time"`
-	ShopID     int64       `json:"shop_id"`
+	ID              int64       `json:"id"`
+	UserID          int64       `json:"user_id"`
+	VoucherID       int64       `json:"voucher_id"`
+	PayValue        int64       `json:"pay_value"`
+	PayType         PayType     `json:"pay_type"`
+	Status          OrderStatus `json:"status"`
+	CreateTime      time.Time   `json:"create_time"`
+	PayTime         *time.Time  `json:"pay_time"`
+	UseTime         *time.Time  `json:"use_time"`
+	RefundTime      *time.Time  `json:"refund_time"`
+	UpdateTime      time.Time   `json:"update_time"`
+	ShopID          int64       `json:"shop_id"`
+	StockRestoredAt *time.Time  `json:"stock_restored_at"`
 }

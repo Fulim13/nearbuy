@@ -25,6 +25,7 @@ const (
 	Voucher_CreateSeckillVoucher_FullMethodName = "/voucher.v1.Voucher/CreateSeckillVoucher"
 	Voucher_NextOrderID_FullMethodName          = "/voucher.v1.Voucher/NextOrderID"
 	Voucher_Seckill_FullMethodName              = "/voucher.v1.Voucher/Seckill"
+	Voucher_RestoreStock_FullMethodName         = "/voucher.v1.Voucher/RestoreStock"
 )
 
 // VoucherClient is the client API for Voucher service.
@@ -41,6 +42,11 @@ type VoucherClient interface {
 	// Seckill is the admission. It returns an order id for an ADMITTED caller and
 	// a reason code for everyone else -- no order row exists yet either way.
 	Seckill(ctx context.Context, in *SeckillRequest, opts ...grpc.CallOption) (*SeckillResponse, error)
+	// RestoreStock gives back the stock an expired order was holding, in Postgres
+	// and in Redis. Called by order-service's expiry job after it has cancelled the
+	// order. Idempotent per order_id: the job retries until it succeeds, and only
+	// the first call for an order changes anything.
+	RestoreStock(ctx context.Context, in *RestoreStockRequest, opts ...grpc.CallOption) (*RestoreStockResponse, error)
 }
 
 type voucherClient struct {
@@ -111,6 +117,16 @@ func (c *voucherClient) Seckill(ctx context.Context, in *SeckillRequest, opts ..
 	return out, nil
 }
 
+func (c *voucherClient) RestoreStock(ctx context.Context, in *RestoreStockRequest, opts ...grpc.CallOption) (*RestoreStockResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(RestoreStockResponse)
+	err := c.cc.Invoke(ctx, Voucher_RestoreStock_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
 // VoucherServer is the server API for Voucher service.
 // All implementations must embed UnimplementedVoucherServer
 // for forward compatibility.
@@ -125,6 +141,11 @@ type VoucherServer interface {
 	// Seckill is the admission. It returns an order id for an ADMITTED caller and
 	// a reason code for everyone else -- no order row exists yet either way.
 	Seckill(context.Context, *SeckillRequest) (*SeckillResponse, error)
+	// RestoreStock gives back the stock an expired order was holding, in Postgres
+	// and in Redis. Called by order-service's expiry job after it has cancelled the
+	// order. Idempotent per order_id: the job retries until it succeeds, and only
+	// the first call for an order changes anything.
+	RestoreStock(context.Context, *RestoreStockRequest) (*RestoreStockResponse, error)
 	mustEmbedUnimplementedVoucherServer()
 }
 
@@ -152,6 +173,9 @@ func (UnimplementedVoucherServer) NextOrderID(context.Context, *NextOrderIDReque
 }
 func (UnimplementedVoucherServer) Seckill(context.Context, *SeckillRequest) (*SeckillResponse, error) {
 	return nil, status.Error(codes.Unimplemented, "method Seckill not implemented")
+}
+func (UnimplementedVoucherServer) RestoreStock(context.Context, *RestoreStockRequest) (*RestoreStockResponse, error) {
+	return nil, status.Error(codes.Unimplemented, "method RestoreStock not implemented")
 }
 func (UnimplementedVoucherServer) mustEmbedUnimplementedVoucherServer() {}
 func (UnimplementedVoucherServer) testEmbeddedByValue()                 {}
@@ -282,6 +306,24 @@ func _Voucher_Seckill_Handler(srv interface{}, ctx context.Context, dec func(int
 	return interceptor(ctx, in, info, handler)
 }
 
+func _Voucher_RestoreStock_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(RestoreStockRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(VoucherServer).RestoreStock(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: Voucher_RestoreStock_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(VoucherServer).RestoreStock(ctx, req.(*RestoreStockRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
 // Voucher_ServiceDesc is the grpc.ServiceDesc for Voucher service.
 // It's only intended for direct use with grpc.RegisterService,
 // and not to be introspected or modified (even as a copy)
@@ -312,6 +354,10 @@ var Voucher_ServiceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "Seckill",
 			Handler:    _Voucher_Seckill_Handler,
+		},
+		{
+			MethodName: "RestoreStock",
+			Handler:    _Voucher_RestoreStock_Handler,
 		},
 	},
 	Streams:  []grpc.StreamDesc{},

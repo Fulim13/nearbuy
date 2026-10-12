@@ -193,6 +193,57 @@ func (s *VoucherService) warmOne(ctx context.Context, voucherID int64, stock int
 	return s.rdb.SetNX(ctx, StockKey(voucherID), stock, 0).Err()
 }
 
+// RestoreStock gives back the one unit of stock an expired order was holding,
+// and returns whether this call did it (false: an earlier call already had).
+//
+// order-service calls it after cancelling the order, and retries until it gets
+// an answer, so it must be safe to run more than once for the same order. One
+// transaction does all of it, in this order:
+//
+//  1. stock_restore row -- the idempotency key; 0 rows means a retry, stop
+//  2. Postgres stock + 1
+//  3. Redis release.lua -- LAST, before COMMIT
+//
+// Redis last for the reason the old S3 branch documented: if release.lua fails,
+// returning the error rolls back steps 1 and 2 together and the caller retries.
+// The window left is "Redis succeeded, COMMIT failed": the retry runs everything
+// again, and release.lua's membership check makes its second run a no-op.
+//
+// Why Redis at all: returning the Postgres stock while leaving the user in
+// seckill:order:{vid} would block them from ever buying this voucher again.
+func (s *VoucherService) RestoreStock(ctx context.Context, orderID, voucherID, userID int64) (bool, error) {
+	var restored bool
+	err := s.withTx(ctx, func(q *repository.Queries) error {
+		n, err := q.InsertStockRestore(ctx, repository.InsertStockRestoreParams{
+			OrderID: orderID, VoucherID: voucherID,
+		})
+		if err != nil {
+			return fmt.Errorf("record stock restore: %w", err)
+		}
+		if n == 0 {
+			return nil
+		}
+
+		rows, err := q.RestoreStock(ctx, repository.RestoreStockParams{Qty: 1, VoucherID: voucherID})
+		if err != nil {
+			return fmt.Errorf("restore stock: %w", err)
+		}
+		if rows == 0 {
+			// Not a seckill voucher, or its row is gone. Nothing to give back in
+			// Postgres; still release the admission below so the user is not
+			// locked out, and still record the order as done.
+			slog.Error("restore stock found no seckill row", "order_id", orderID, "voucher_id", voucherID)
+		}
+
+		if _, err := s.admitter.Release(ctx, voucherID, userID); err != nil {
+			return fmt.Errorf("release admission: %w", err)
+		}
+		restored = true
+		return nil
+	})
+	return restored, err
+}
+
 // SeckillAdmitted is the event the admission publishes. It carries everything the
 // consumer needs to build the order, because that consumer lives in another
 // service with another database and cannot look any of it up.

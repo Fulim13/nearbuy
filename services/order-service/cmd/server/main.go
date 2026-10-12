@@ -14,6 +14,7 @@ import (
 	"syscall"
 	"time"
 
+	"github.com/Fulim13/nearbuy/gen/golang/v1/voucher"
 	"github.com/Fulim13/nearbuy/pkg/dtmx"
 	"github.com/Fulim13/nearbuy/pkg/grpx"
 	"github.com/Fulim13/nearbuy/pkg/kafkax"
@@ -151,12 +152,19 @@ func main() {
 		}
 	}()
 
-	// ------------------------------------------------- S3's expiry scheduler
+	// ------------------------------------------------------ expiry scheduler
 	//
-	// Every replica runs this goroutine. Only one does the work on any given
-	// tick, because claim() takes a Postgres advisory lock -- and even if two
-	// did, expire-{orderID} is deterministic and DTM would run it once.
-	expiry := scheduler.NewExpiry(pool, endpoints, scheduler.Config{
+	// Every replica runs this goroutine. Cancelling skips rows another replica
+	// has locked, and RestoreStock is idempotent per order, so running it
+	// everywhere is safe.
+	voucherConn, err := grpx.Dial(util.Env("VOUCHER_SERVICE_ADDR", "voucher-service:9000"))
+	if err != nil {
+		slog.Error("voucher client", "error", err)
+		os.Exit(1)
+	}
+	defer voucherConn.Close()
+
+	expiry := scheduler.NewExpiry(pool, voucher.NewVoucherClient(voucherConn), scheduler.Config{
 		Interval: envDuration("EXPIRY_INTERVAL", 30*time.Second),
 		Expiry:   envDuration("ORDER_EXPIRY", 15*time.Minute),
 		Batch:    int32(envInt("EXPIRY_BATCH", 100)),

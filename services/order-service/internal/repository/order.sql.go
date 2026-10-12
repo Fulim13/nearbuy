@@ -11,6 +11,51 @@ import (
 	"github.com/jackc/pgx/v5/pgtype"
 )
 
+const cancelExpiredOrders = `-- name: CancelExpiredOrders :many
+UPDATE voucher_order
+SET status = 'cancelled'
+WHERE id IN (
+    SELECT id FROM voucher_order
+    WHERE status = 'unpaid'
+      AND create_time < now() - $1::interval
+    ORDER BY create_time
+    LIMIT $2
+    FOR UPDATE SKIP LOCKED
+)
+RETURNING id
+`
+
+type CancelExpiredOrdersParams struct {
+	OlderThan pgtype.Interval `json:"older_than"`
+	MaxRows   int32           `json:"max_rows"`
+}
+
+// Step 1 of the expiry job: cancel unpaid orders older than the payment window.
+//
+// One statement, so it cannot race a payment: PayOrder's UPDATE also requires
+// status = 'unpaid', and whichever commits first wins the row. FOR UPDATE SKIP
+// LOCKED lets several order-service replicas run the job at once, each taking
+// different rows. The inner WHERE matches idx_order_status_create.
+func (q *Queries) CancelExpiredOrders(ctx context.Context, arg CancelExpiredOrdersParams) ([]int64, error) {
+	rows, err := q.db.Query(ctx, cancelExpiredOrders, arg.OlderThan, arg.MaxRows)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []int64
+	for rows.Next() {
+		var id int64
+		if err := rows.Scan(&id); err != nil {
+			return nil, err
+		}
+		items = append(items, id)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const createOrder = `-- name: CreateOrder :execrows
 INSERT INTO voucher_order (id, user_id, voucher_id, shop_id, pay_value, status)
 VALUES ($1, $2, $3, $4, $5, 'unpaid')
@@ -58,7 +103,7 @@ func (q *Queries) DeleteOrder(ctx context.Context, id int64) (int64, error) {
 }
 
 const getOrder = `-- name: GetOrder :one
-SELECT id, user_id, voucher_id, pay_value, pay_type, status, create_time, pay_time, use_time, refund_time, update_time, shop_id FROM voucher_order WHERE id = $1
+SELECT id, user_id, voucher_id, pay_value, pay_type, status, create_time, pay_time, use_time, refund_time, update_time, shop_id, stock_restored_at FROM voucher_order WHERE id = $1
 `
 
 func (q *Queries) GetOrder(ctx context.Context, id int64) (VoucherOrder, error) {
@@ -77,58 +122,13 @@ func (q *Queries) GetOrder(ctx context.Context, id int64) (VoucherOrder, error) 
 		&i.RefundTime,
 		&i.UpdateTime,
 		&i.ShopID,
+		&i.StockRestoredAt,
 	)
 	return i, err
 }
 
-const listExpiredUnpaid = `-- name: ListExpiredUnpaid :many
-SELECT id, user_id, voucher_id
-FROM voucher_order
-WHERE status = 'unpaid'
-  AND create_time < now() - $1::interval
-ORDER BY create_time
-LIMIT $2
-`
-
-type ListExpiredUnpaidParams struct {
-	OlderThan pgtype.Interval `json:"older_than"`
-	MaxRows   int32           `json:"max_rows"`
-}
-
-type ListExpiredUnpaidRow struct {
-	ID        int64 `json:"id"`
-	UserID    int64 `json:"user_id"`
-	VoucherID int64 `json:"voucher_id"`
-}
-
-// Drives the S3 expiry sweep. The WHERE clause matches lesson 02's
-// idx_order_status_create exactly -- (status, create_time) -- so this stays an
-// index scan as voucher_order grows.
-//
-// LIMIT, always: an unbounded sweep after an outage would submit tens of
-// thousands of Sagas in one tick and DTM would be the thing that fell over.
-func (q *Queries) ListExpiredUnpaid(ctx context.Context, arg ListExpiredUnpaidParams) ([]ListExpiredUnpaidRow, error) {
-	rows, err := q.db.Query(ctx, listExpiredUnpaid, arg.OlderThan, arg.MaxRows)
-	if err != nil {
-		return nil, err
-	}
-	defer rows.Close()
-	var items []ListExpiredUnpaidRow
-	for rows.Next() {
-		var i ListExpiredUnpaidRow
-		if err := rows.Scan(&i.ID, &i.UserID, &i.VoucherID); err != nil {
-			return nil, err
-		}
-		items = append(items, i)
-	}
-	if err := rows.Err(); err != nil {
-		return nil, err
-	}
-	return items, nil
-}
-
 const listOrdersByUser = `-- name: ListOrdersByUser :many
-SELECT id, user_id, voucher_id, pay_value, pay_type, status, create_time, pay_time, use_time, refund_time, update_time, shop_id FROM voucher_order
+SELECT id, user_id, voucher_id, pay_value, pay_type, status, create_time, pay_time, use_time, refund_time, update_time, shop_id, stock_restored_at FROM voucher_order
 WHERE user_id = $1
 ORDER BY id DESC
 LIMIT $2 OFFSET $3
@@ -162,6 +162,7 @@ func (q *Queries) ListOrdersByUser(ctx context.Context, arg ListOrdersByUserPara
 			&i.RefundTime,
 			&i.UpdateTime,
 			&i.ShopID,
+			&i.StockRestoredAt,
 		); err != nil {
 			return nil, err
 		}
@@ -171,4 +172,49 @@ func (q *Queries) ListOrdersByUser(ctx context.Context, arg ListOrdersByUserPara
 		return nil, err
 	}
 	return items, nil
+}
+
+const listRestorePending = `-- name: ListRestorePending :many
+SELECT id, user_id, voucher_id
+FROM voucher_order
+WHERE status = 'cancelled' AND stock_restored_at IS NULL
+ORDER BY create_time
+LIMIT $1
+`
+
+type ListRestorePendingRow struct {
+	ID        int64 `json:"id"`
+	UserID    int64 `json:"user_id"`
+	VoucherID int64 `json:"voucher_id"`
+}
+
+// Step 2: cancelled orders whose stock voucher-service has not yet given back.
+// Retried every tick until MarkStockRestored; idx_order_restore_pending.
+func (q *Queries) ListRestorePending(ctx context.Context, limit int32) ([]ListRestorePendingRow, error) {
+	rows, err := q.db.Query(ctx, listRestorePending, limit)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []ListRestorePendingRow
+	for rows.Next() {
+		var i ListRestorePendingRow
+		if err := rows.Scan(&i.ID, &i.UserID, &i.VoucherID); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const markStockRestored = `-- name: MarkStockRestored :exec
+UPDATE voucher_order SET stock_restored_at = now() WHERE id = $1
+`
+
+func (q *Queries) MarkStockRestored(ctx context.Context, id int64) error {
+	_, err := q.db.Exec(ctx, markStockRestored, id)
+	return err
 }

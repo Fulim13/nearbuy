@@ -182,6 +182,18 @@ func rfc3339(t *time.Time) *string {
 	return &s
 }
 
+func (h *GRPCHandler) RestoreStock(ctx context.Context, in *voucher.RestoreStockRequest) (*voucher.RestoreStockResponse, error) {
+	if in.GetOrderId() <= 0 || in.GetVoucherId() <= 0 || in.GetUserId() <= 0 {
+		return nil, status.Error(codes.InvalidArgument, "order_id, voucher_id and user_id must be positive")
+	}
+	restored, err := h.service.RestoreStock(ctx, in.GetOrderId(), in.GetVoucherId(), in.GetUserId())
+	if err != nil {
+		slog.Error("restore stock", "order_id", in.GetOrderId(), "voucher_id", in.GetVoucherId(), "error", err)
+		return nil, status.Error(codes.Internal, "internal error")
+	}
+	return &voucher.RestoreStockResponse{Restored: restored}, nil
+}
+
 // ---------------------------------------------------------------- seckill
 
 // codeToPB maps the Lua return value onto a wire enum, so the gateway chooses an

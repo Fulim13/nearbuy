@@ -1,16 +1,14 @@
-// cmd/sagademo submits any of the three Sagas by hand.
+// cmd/sagademo submits either Saga by hand.
 //
 // Same purpose as cmd/kafkagen in lesson 09: a Saga you cannot start by hand is
 // a Saga you cannot debug. This lets you drive one branch sequence at a time,
 // with a gid you chose, and watch trans_global -- without a seckill, without
-// Kafka, without waiting for a consumer to rebalance, and (for S3) without
-// waiting out the expiry window.
+// Kafka, and without waiting for a consumer to rebalance.
 //
 //	go run ./cmd/sagademo -saga s1 -order-id 900001 -user 5 -voucher-id 2 -wait
 //	go run ./cmd/sagademo -saga s1 -order-id 900001 -user 5 -voucher-id 2 -wait   # same gid: refused
 //	go run ./cmd/sagademo -saga s1 -order-id 900002 -user 6 -voucher-id 2 -qty 100 -wait  # out of stock
 //	go run ./cmd/sagademo -saga s2 -order-id 900001 -user 5 -wait                 # pay
-//	go run ./cmd/sagademo -saga s3 -order-id 900001 -user 5 -voucher-id 2 -wait   # expire
 package main
 
 import (
@@ -24,7 +22,7 @@ import (
 
 func main() {
 	var (
-		which     = flag.String("saga", "s1", "which saga: s1 (seckill), s2 (pay), s3 (expire)")
+		which     = flag.String("saga", "s1", "which saga: s1 (seckill), s2 (pay)")
 		dtmServer = flag.String("dtm", env("DTM_SERVER", "http://localhost:36789/api/dtmsvr"), "dtm server api base")
 		orderBase = flag.String("order", env("ORDER_BRANCH_BASE", "http://localhost:8000/branch"), "order-service branch base url")
 		vouchBase = flag.String("voucher", env("VOUCHER_BRANCH_BASE", "http://localhost:8000/branch"), "voucher-service branch base url")
@@ -43,7 +41,7 @@ func main() {
 		log.Fatal("-order-id and -user are required")
 	}
 	if *which != "s2" && *voucherID == 0 {
-		log.Fatal("-voucher-id is required for s1 and s3")
+		log.Fatal("-voucher-id is required for s1")
 	}
 
 	// Payloads as maps, not as the services' own structs: cmd/ sits outside
@@ -76,17 +74,8 @@ func main() {
 			Add(*userBase+"/deduct_balance", *userBase+"/deduct_balance_comp", pay).
 			Add(*orderBase+"/pay_order", *orderBase+"/pay_order_comp", pay)
 
-	case "s3":
-		gid = defaultGid(*gidFlag, "expire", *orderID)
-		exp := map[string]any{
-			"order_id": *orderID, "user_id": *userID, "voucher_id": *voucherID,
-		}
-		saga = dtmcli.NewSaga(*dtmServer, gid).
-			Add(*orderBase+"/cancel_order", *orderBase+"/cancel_order_comp", exp).
-			Add(*vouchBase+"/restore_for_expiry", *vouchBase+"/restore_for_expiry_comp", exp)
-
 	default:
-		log.Fatalf("unknown -saga %q: want s1, s2 or s3", *which)
+		log.Fatalf("unknown -saga %q: want s1 or s2", *which)
 	}
 
 	saga.WaitResult = *wait

@@ -21,16 +21,33 @@ WHERE user_id = $1
 ORDER BY id DESC
 LIMIT $2 OFFSET $3;
 
--- name: ListExpiredUnpaid :many
--- Drives the S3 expiry sweep. The WHERE clause matches lesson 02's
--- idx_order_status_create exactly -- (status, create_time) -- so this stays an
--- index scan as voucher_order grows.
+-- name: CancelExpiredOrders :many
+-- Step 1 of the expiry job: cancel unpaid orders older than the payment window.
 --
--- LIMIT, always: an unbounded sweep after an outage would submit tens of
--- thousands of Sagas in one tick and DTM would be the thing that fell over.
+-- One statement, so it cannot race a payment: PayOrder's UPDATE also requires
+-- status = 'unpaid', and whichever commits first wins the row. FOR UPDATE SKIP
+-- LOCKED lets several order-service replicas run the job at once, each taking
+-- different rows. The inner WHERE matches idx_order_status_create.
+UPDATE voucher_order
+SET status = 'cancelled'
+WHERE id IN (
+    SELECT id FROM voucher_order
+    WHERE status = 'unpaid'
+      AND create_time < now() - sqlc.arg('older_than')::interval
+    ORDER BY create_time
+    LIMIT sqlc.arg('max_rows')
+    FOR UPDATE SKIP LOCKED
+)
+RETURNING id;
+
+-- name: ListRestorePending :many
+-- Step 2: cancelled orders whose stock voucher-service has not yet given back.
+-- Retried every tick until MarkStockRestored; idx_order_restore_pending.
 SELECT id, user_id, voucher_id
 FROM voucher_order
-WHERE status = 'unpaid'
-  AND create_time < now() - sqlc.arg('older_than')::interval
+WHERE status = 'cancelled' AND stock_restored_at IS NULL
 ORDER BY create_time
-LIMIT sqlc.arg('max_rows');
+LIMIT $1;
+
+-- name: MarkStockRestored :exec
+UPDATE voucher_order SET stock_restored_at = now() WHERE id = $1;

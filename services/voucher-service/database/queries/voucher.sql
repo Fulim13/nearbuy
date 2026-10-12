@@ -54,5 +54,12 @@ UPDATE seckill_voucher
 SET stock = stock + sqlc.arg('qty')::int
 WHERE voucher_id = sqlc.arg('voucher_id');
 
+-- name: InsertStockRestore :execrows
+-- The idempotency key for RestoreStock: 1 row affected the first time an order's
+-- stock is restored, 0 on every retry after that.
+INSERT INTO stock_restore (order_id, voucher_id)
+VALUES ($1, $2)
+ON CONFLICT (order_id) DO NOTHING;
+
 -- name: GetSeckillStock :one
 SELECT stock, begin_time, end_time FROM seckill_voucher WHERE voucher_id = $1;

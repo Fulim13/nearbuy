@@ -792,6 +792,112 @@ func (x *SeckillResponse) GetCode() SeckillCode {
 	return SeckillCode_SECKILL_CODE_UNSPECIFIED
 }
 
+type RestoreStockRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	OrderId       int64                  `protobuf:"varint,1,opt,name=order_id,json=orderId,proto3" json:"order_id,omitempty"`
+	VoucherId     int64                  `protobuf:"varint,2,opt,name=voucher_id,json=voucherId,proto3" json:"voucher_id,omitempty"`
+	UserId        int64                  `protobuf:"varint,3,opt,name=user_id,json=userId,proto3" json:"user_id,omitempty"` // released from the voucher's one-per-user set
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *RestoreStockRequest) Reset() {
+	*x = RestoreStockRequest{}
+	mi := &file_voucher_proto_msgTypes[12]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *RestoreStockRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*RestoreStockRequest) ProtoMessage() {}
+
+func (x *RestoreStockRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_voucher_proto_msgTypes[12]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use RestoreStockRequest.ProtoReflect.Descriptor instead.
+func (*RestoreStockRequest) Descriptor() ([]byte, []int) {
+	return file_voucher_proto_rawDescGZIP(), []int{12}
+}
+
+func (x *RestoreStockRequest) GetOrderId() int64 {
+	if x != nil {
+		return x.OrderId
+	}
+	return 0
+}
+
+func (x *RestoreStockRequest) GetVoucherId() int64 {
+	if x != nil {
+		return x.VoucherId
+	}
+	return 0
+}
+
+func (x *RestoreStockRequest) GetUserId() int64 {
+	if x != nil {
+		return x.UserId
+	}
+	return 0
+}
+
+type RestoreStockResponse struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// false when this order's stock had already been restored: a retry, and not
+	// an error.
+	Restored      bool `protobuf:"varint,1,opt,name=restored,proto3" json:"restored,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *RestoreStockResponse) Reset() {
+	*x = RestoreStockResponse{}
+	mi := &file_voucher_proto_msgTypes[13]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *RestoreStockResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*RestoreStockResponse) ProtoMessage() {}
+
+func (x *RestoreStockResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_voucher_proto_msgTypes[13]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use RestoreStockResponse.ProtoReflect.Descriptor instead.
+func (*RestoreStockResponse) Descriptor() ([]byte, []int) {
+	return file_voucher_proto_rawDescGZIP(), []int{13}
+}
+
+func (x *RestoreStockResponse) GetRestored() bool {
+	if x != nil {
+		return x.Restored
+	}
+	return false
+}
+
 var File_voucher_proto protoreflect.FileDescriptor
 
 const file_voucher_proto_rawDesc = "" +
@@ -850,7 +956,14 @@ const file_voucher_proto_rawDesc = "" +
 	"\badmitted\x18\x01 \x01(\bR\badmitted\x12\x19\n" +
 	"\border_id\x18\x02 \x01(\x03R\aorderId\x12\x16\n" +
 	"\x06reason\x18\x03 \x01(\tR\x06reason\x12+\n" +
-	"\x04code\x18\x04 \x01(\x0e2\x17.voucher.v1.SeckillCodeR\x04code*\xe2\x01\n" +
+	"\x04code\x18\x04 \x01(\x0e2\x17.voucher.v1.SeckillCodeR\x04code\"h\n" +
+	"\x13RestoreStockRequest\x12\x19\n" +
+	"\border_id\x18\x01 \x01(\x03R\aorderId\x12\x1d\n" +
+	"\n" +
+	"voucher_id\x18\x02 \x01(\x03R\tvoucherId\x12\x17\n" +
+	"\auser_id\x18\x03 \x01(\x03R\x06userId\"2\n" +
+	"\x14RestoreStockResponse\x12\x1a\n" +
+	"\brestored\x18\x01 \x01(\bR\brestored*\xe2\x01\n" +
 	"\vSeckillCode\x12\x1c\n" +
 	"\x18SECKILL_CODE_UNSPECIFIED\x10\x00\x12\x19\n" +
 	"\x15SECKILL_CODE_ADMITTED\x10\x01\x12\x1d\n" +
@@ -858,7 +971,7 @@ const file_voucher_proto_rawDesc = "" +
 	"\x1cSECKILL_CODE_ALREADY_ORDERED\x10\x03\x12\x1c\n" +
 	"\x18SECKILL_CODE_NOT_STARTED\x10\x04\x12\x19\n" +
 	"\x15SECKILL_CODE_FINISHED\x10\x05\x12 \n" +
-	"\x1cSECKILL_CODE_UNKNOWN_VOUCHER\x10\x062\x89\x04\n" +
+	"\x1cSECKILL_CODE_UNKNOWN_VOUCHER\x10\x062\xdc\x04\n" +
 	"\aVoucher\x12K\n" +
 	"\n" +
 	"GetVoucher\x12\x1d.voucher.v1.GetVoucherRequest\x1a\x1e.voucher.v1.GetVoucherResponse\x12c\n" +
@@ -866,7 +979,8 @@ const file_voucher_proto_rawDesc = "" +
 	"\rCreateVoucher\x12 .voucher.v1.CreateVoucherRequest\x1a!.voucher.v1.CreateVoucherResponse\x12b\n" +
 	"\x14CreateSeckillVoucher\x12'.voucher.v1.CreateSeckillVoucherRequest\x1a!.voucher.v1.CreateVoucherResponse\x12N\n" +
 	"\vNextOrderID\x12\x1e.voucher.v1.NextOrderIDRequest\x1a\x1f.voucher.v1.NextOrderIDResponse\x12B\n" +
-	"\aSeckill\x12\x1a.voucher.v1.SeckillRequest\x1a\x1b.voucher.v1.SeckillResponseB:Z8github.com/Fulim13/nearbuy/gen/golang/v1/voucher;voucherb\x06proto3"
+	"\aSeckill\x12\x1a.voucher.v1.SeckillRequest\x1a\x1b.voucher.v1.SeckillResponse\x12Q\n" +
+	"\fRestoreStock\x12\x1f.voucher.v1.RestoreStockRequest\x1a .voucher.v1.RestoreStockResponseB:Z8github.com/Fulim13/nearbuy/gen/golang/v1/voucher;voucherb\x06proto3"
 
 var (
 	file_voucher_proto_rawDescOnce sync.Once
@@ -881,7 +995,7 @@ func file_voucher_proto_rawDescGZIP() []byte {
 }
 
 var file_voucher_proto_enumTypes = make([]protoimpl.EnumInfo, 1)
-var file_voucher_proto_msgTypes = make([]protoimpl.MessageInfo, 12)
+var file_voucher_proto_msgTypes = make([]protoimpl.MessageInfo, 14)
 var file_voucher_proto_goTypes = []any{
 	(SeckillCode)(0),                    // 0: voucher.v1.SeckillCode
 	(*VoucherInfo)(nil),                 // 1: voucher.v1.VoucherInfo
@@ -896,6 +1010,8 @@ var file_voucher_proto_goTypes = []any{
 	(*NextOrderIDResponse)(nil),         // 10: voucher.v1.NextOrderIDResponse
 	(*SeckillRequest)(nil),              // 11: voucher.v1.SeckillRequest
 	(*SeckillResponse)(nil),             // 12: voucher.v1.SeckillResponse
+	(*RestoreStockRequest)(nil),         // 13: voucher.v1.RestoreStockRequest
+	(*RestoreStockResponse)(nil),        // 14: voucher.v1.RestoreStockResponse
 }
 var file_voucher_proto_depIdxs = []int32{
 	1,  // 0: voucher.v1.GetVoucherResponse.voucher:type_name -> voucher.v1.VoucherInfo
@@ -909,14 +1025,16 @@ var file_voucher_proto_depIdxs = []int32{
 	8,  // 8: voucher.v1.Voucher.CreateSeckillVoucher:input_type -> voucher.v1.CreateSeckillVoucherRequest
 	9,  // 9: voucher.v1.Voucher.NextOrderID:input_type -> voucher.v1.NextOrderIDRequest
 	11, // 10: voucher.v1.Voucher.Seckill:input_type -> voucher.v1.SeckillRequest
-	3,  // 11: voucher.v1.Voucher.GetVoucher:output_type -> voucher.v1.GetVoucherResponse
-	5,  // 12: voucher.v1.Voucher.ListVouchersByShop:output_type -> voucher.v1.ListVouchersByShopResponse
-	7,  // 13: voucher.v1.Voucher.CreateVoucher:output_type -> voucher.v1.CreateVoucherResponse
-	7,  // 14: voucher.v1.Voucher.CreateSeckillVoucher:output_type -> voucher.v1.CreateVoucherResponse
-	10, // 15: voucher.v1.Voucher.NextOrderID:output_type -> voucher.v1.NextOrderIDResponse
-	12, // 16: voucher.v1.Voucher.Seckill:output_type -> voucher.v1.SeckillResponse
-	11, // [11:17] is the sub-list for method output_type
-	5,  // [5:11] is the sub-list for method input_type
+	13, // 11: voucher.v1.Voucher.RestoreStock:input_type -> voucher.v1.RestoreStockRequest
+	3,  // 12: voucher.v1.Voucher.GetVoucher:output_type -> voucher.v1.GetVoucherResponse
+	5,  // 13: voucher.v1.Voucher.ListVouchersByShop:output_type -> voucher.v1.ListVouchersByShopResponse
+	7,  // 14: voucher.v1.Voucher.CreateVoucher:output_type -> voucher.v1.CreateVoucherResponse
+	7,  // 15: voucher.v1.Voucher.CreateSeckillVoucher:output_type -> voucher.v1.CreateVoucherResponse
+	10, // 16: voucher.v1.Voucher.NextOrderID:output_type -> voucher.v1.NextOrderIDResponse
+	12, // 17: voucher.v1.Voucher.Seckill:output_type -> voucher.v1.SeckillResponse
+	14, // 18: voucher.v1.Voucher.RestoreStock:output_type -> voucher.v1.RestoreStockResponse
+	12, // [12:19] is the sub-list for method output_type
+	5,  // [5:12] is the sub-list for method input_type
 	5,  // [5:5] is the sub-list for extension type_name
 	5,  // [5:5] is the sub-list for extension extendee
 	0,  // [0:5] is the sub-list for field type_name
@@ -934,7 +1052,7 @@ func file_voucher_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_voucher_proto_rawDesc), len(file_voucher_proto_rawDesc)),
 			NumEnums:      1,
-			NumMessages:   12,
+			NumMessages:   14,
 			NumExtensions: 0,
 			NumServices:   1,
 		},
