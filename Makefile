@@ -5,7 +5,7 @@ SQLC_SERVICES    = user shop voucher order
 MODULE := github.com/Fulim13/nearbuy
 
 
-.PHONY: bootstrap cluster ingress up down nuke psql redis migrate-up migrate-down migrate-reset sqlc proto proto-clean
+.PHONY: bootstrap cluster ingress up down nuke psql redis migrate-up migrate-down migrate-reset sqlc proto proto-clean frontend
 
 bootstrap: cluster ingress
 
@@ -56,3 +56,9 @@ proto:
 
 proto-clean:
 	find gen -name '*.pb.go' -delete
+
+# Vite dev server on http://localhost:5173; /api is proxied to the ingress, so
+# run `make up` first. Installs dependencies on the first run.
+frontend:
+	@[ -d frontend/node_modules ] || (cd frontend && npm install)
+	cd frontend && npm run dev
