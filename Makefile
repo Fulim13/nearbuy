@@ -27,10 +27,10 @@ nuke:
 	kind delete cluster --name $(CLUSTER)
 
 psql:
-	psql "postgres://postgres:postgres@localhost:5432/postgres"
+	psql "postgres://postgres:postgres@localhost:5432/$(or $(DB),postgres)" $(ARGS)
 
 redis:
-	redis-cli -h localhost -p 6379
+	redis-cli -h localhost -p 6379 $(ARGS)
 
 migrate-up:
 	@for s in $(SERVICES_WITH_DB); do CLUSTER=$(CLUSTER) ./scripts/migrate.sh $$s up; done
